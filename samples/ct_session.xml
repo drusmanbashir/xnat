@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xnat:CTSession ID="XNAT_E00241" project="nodes" label="10_CT_1" session_type="nodes" modality="CT" UID="1.2.752.24.5.776201145.20200708225131.5075756" study_id="EIM696I1H3" xmlns:arc="http://nrg.wustl.edu/arc" xmlns:val="http://nrg.wustl.edu/val" xmlns:pipe="http://nrg.wustl.edu/pipe" xmlns:icr="http://icr.ac.uk/icr" xmlns:wrk="http://nrg.wustl.edu/workflow" xmlns:scr="http://nrg.wustl.edu/scr" xmlns:xdat="http://nrg.wustl.edu/security" xmlns:cat="http://nrg.wustl.edu/catalog" xmlns:prov="http://www.nbirn.net/prov" xmlns:xnat="http://nrg.wustl.edu/xnat" xmlns:xnat_a="http://nrg.wustl.edu/xnat_assessments" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://nrg.wustl.edu/workflow http://localhost:8080/xnat/schemas/workflow.xsd http://nrg.wustl.edu/catalog http://localhost:8080/xnat/schemas/catalog.xsd http://nrg.wustl.edu/pipe http://localhost:8080/xnat/schemas/repository.xsd http://nrg.wustl.edu/scr http://localhost:8080/xnat/schemas/screeningAssessment.xsd http://nrg.wustl.edu/arc http://localhost:8080/xnat/schemas/project.xsd http://icr.ac.uk/icr http://localhost:8080/xnat/schemas/roi.xsd http://nrg.wustl.edu/val http://localhost:8080/xnat/schemas/protocolValidation.xsd http://nrg.wustl.edu/xnat http://localhost:8080/xnat/schemas/xnat.xsd http://nrg.wustl.edu/xnat_assessments http://localhost:8080/xnat/schemas/assessments.xsd http://www.nbirn.net/prov http://localhost:8080/xnat/schemas/birnprov.xsd http://nrg.wustl.edu/security http://localhost:8080/xnat/schemas/security.xsd">
+<xnat:date>2020-07-13</xnat:date>
+<xnat:time>17:30:18</xnat:time>
+<xnat:acquisition_site>Research</xnat:acquisition_site>
+<xnat:subject_ID>XNAT_S00161</xnat:subject_ID>
+<xnat:scanner manufacturer="TOSHIBA" model="Aquilion Prime SP"/>
+<xnat:prearchivePath>/s/xnat/prearchive/nodes/20230604_151404946/10_CT_1</xnat:prearchivePath>
+<xnat:scans>
+<xnat:scan ID="3" type="Body 1.0 CE" UID="1.2.392.200036.9116.2.6.1.44063.1804765821.1594629190.190488" project="nodes" xsi:type="xnat:ctScanData">
+<xnat:image_session_ID>XNAT_E00241</xnat:image_session_ID>
+<xnat:quality>dunno</xnat:quality>
+<xnat:series_description>Body 1.0 CE</xnat:series_description>
+<xnat:scanner manufacturer="TOSHIBA" model="Aquilion Prime SP"/>
+<xnat:modality>CT</xnat:modality>
+<xnat:frames>353</xnat:frames>
+<xnat:file label="DICOM" file_count="353" file_size="185790056" URI="/s/xnat/archive/nodes/arc001/10_CT_1/SCANS/3/DICOM/scan_3_catalog.xml" format="DICOM" content="RAW" xsi:type="xnat:resourceCatalog"/>
+<xnat:file label="SNAPSHOTS" file_count="2" file_size="110316" URI="/s/xnat/archive/nodes/arc001/10_CT_1/SCANS/3/SNAPSHOTS/3_catalog.xml" format="GIF" description="Snapshots for session XNAT_E00241 scan 3" content="SNAPSHOTS" xsi:type="xnat:resourceCatalog"/>
+<xnat:file label="IMAGE" file_count="1" file_size="185074016" URI="/s/xnat/archive/nodes/arc001/10_CT_1/SCANS/3/IMAGE/3_catalog.xml" format="NIFTI" content="CT" xsi:type="xnat:resourceCatalog">
+<xnat:tags>
+<xnat:tag>U</xnat:tag>
+</xnat:tags>
+</xnat:file>
+<xnat:startTime>17:32:19</xnat:startTime>
+<xnat:start_date>2020-07-13</xnat:start_date>
+<xnat:parameters>
+<xnat:voxelRes x="0.782" y="0.782" z="1.0"/>
+<xnat:orientation>Tra</xnat:orientation>
+<xnat:fov x="512" y="512"/>
+<xnat:rescale>
+<xnat:intercept>0</xnat:intercept>
+<xnat:slope>1</xnat:slope>
+</xnat:rescale>
+<xnat:kvp>120.0</xnat:kvp>
+<xnat:acquisitionNumber>3</xnat:acquisitionNumber>
+<xnat:imageType>ORIGINAL\\PRIMARY\\AXIAL</xnat:imageType>
+<xnat:options>HELICAL_CT</xnat:options>
+<xnat:collectionDiameter>500.0</xnat:collectionDiameter>
+<xnat:gantryTilt>0.0</xnat:gantryTilt>
+<xnat:tableHeight>111.0</xnat:tableHeight>
+<xnat:rotationDirection>CW</xnat:rotationDirection>
+<xnat:exposureTime>500.0</xnat:exposureTime>
+<xnat:filter>LARGE</xnat:filter>
+<xnat:generatorPower>54.0</xnat:generatorPower>
+<xnat:focalSpots>
+<xnat:focalSpot>1.6</xnat:focalSpot>
+<xnat:focalSpot>1.4</xnat:focalSpot>
+</xnat:focalSpots>
+<xnat:convolutionKernel>FC08</xnat:convolutionKernel>
+<xnat:collimationWidth>
+<xnat:single>0.5</xnat:single>
+<xnat:total>40.0</xnat:total>
+</xnat:collimationWidth>
+<xnat:tableFeedPerRotation>55.5</xnat:tableFeedPerRotation>
+<xnat:pitchFactor>1.388</xnat:pitchFactor>
+<xnat:estimatedDoseSaving modulation="3D">18.73</xnat:estimatedDoseSaving>
+<xnat:ctDIvol>7.1</xnat:ctDIvol>
+</xnat:parameters>
+</xnat:scan>
+</xnat:scans>
+<xnat:dcmAccessionNumber>RIM696I1J3</xnat:dcmAccessionNumber>
+<xnat:dcmPatientId>10_CT_1</xnat:dcmPatientId>
+<xnat:dcmPatientName>10</xnat:dcmPatientName>
+</xnat:CTSession>

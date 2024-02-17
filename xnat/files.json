@@ -1,0 +1,24 @@
+{
+  "ResultSet": {
+    "Columns": [
+      {
+        "key": "URI",
+        "serverRoot": "/xnat-web-1.8.8"
+      }
+    ],
+    "Result": [
+      {
+        "file_content": "",
+        "Size": "294125920",
+        "file_tags": "",
+        "cat_ID": "530",
+        "digest": "6d0262a0ad41f5e712191d6b69e06db5",
+        "collection": "NIFTI",
+        "URI": "/data/projects/litq/subjects/XNAT_S00142/experiments/XNAT_E00182/scans/4/resources/530/files/input_20190927000000_4.nii",
+        "file_format": "",
+        "Name": "input_20190927000000_4.nii"
+      }
+    ],
+    "title": "Files"
+  }
+}

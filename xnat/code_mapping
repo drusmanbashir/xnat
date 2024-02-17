@@ -1,0 +1,7 @@
+{
+  "scope": "Site",
+  "fieldName": "exposure",
+  "fieldType": "integer",
+  "dicomTag": "0x00181152",
+  "schemaElement": "xnat:ctScanData"
+}

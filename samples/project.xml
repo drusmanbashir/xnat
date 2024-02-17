@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xnat:Project ID="nodes" secondary_ID="nodes" active="1" xmlns:arc="http://nrg.wustl.edu/arc" xmlns:val="http://nrg.wustl.edu/val" xmlns:pipe="http://nrg.wustl.edu/pipe" xmlns:icr="http://icr.ac.uk/icr" xmlns:wrk="http://nrg.wustl.edu/workflow" xmlns:scr="http://nrg.wustl.edu/scr" xmlns:xdat="http://nrg.wustl.edu/security" xmlns:cat="http://nrg.wustl.edu/catalog" xmlns:prov="http://www.nbirn.net/prov" xmlns:xnat="http://nrg.wustl.edu/xnat" xmlns:xnat_a="http://nrg.wustl.edu/xnat_assessments" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://nrg.wustl.edu/workflow http://localhost:8080/xnat/schemas/workflow.xsd http://nrg.wustl.edu/catalog http://localhost:8080/xnat/schemas/catalog.xsd http://nrg.wustl.edu/pipe http://localhost:8080/xnat/schemas/repository.xsd http://nrg.wustl.edu/scr http://localhost:8080/xnat/schemas/screeningAssessment.xsd http://nrg.wustl.edu/arc http://localhost:8080/xnat/schemas/project.xsd http://icr.ac.uk/icr http://localhost:8080/xnat/schemas/roi.xsd http://nrg.wustl.edu/val http://localhost:8080/xnat/schemas/protocolValidation.xsd http://nrg.wustl.edu/xnat http://localhost:8080/xnat/schemas/xnat.xsd http://nrg.wustl.edu/xnat_assessments http://localhost:8080/xnat/schemas/assessments.xsd http://www.nbirn.net/prov http://localhost:8080/xnat/schemas/birnprov.xsd http://nrg.wustl.edu/security http://localhost:8080/xnat/schemas/security.xsd">
+<xnat:name>nodes</xnat:name>
+<xnat:PI>
+<xnat:title>Dr</xnat:title>
+<xnat:firstname>Usman</xnat:firstname>
+<xnat:lastname>Bashir</xnat:lastname>
+<xnat:email>drusmanbashir@gmail.com</xnat:email>
+<xnat:phone>7598454470</xnat:phone>
+</xnat:PI>
+<xnat:custom_fields>{}</xnat:custom_fields>
+</xnat:Project>

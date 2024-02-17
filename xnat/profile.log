@@ -1,0 +1,657 @@
+SCRIPT  /usr/local/share/nvim/runtime/syntax/python.vim
+Sourced 1 time
+Total time:   0.000564
+ Self time:   0.000558
+
+count  total (s)   self (s)
+                            " Vim syntax file
+                            " Language:	Python
+                            " Maintainer:	Zvezdan Petkovic <zpetkovic@acm.org>
+                            " Last Change:	2023 Feb 28
+                            " Credits:	Neil Schemenauer <nas@python.ca>
+                            "		Dmitry Vasiliev
+                            "
+                            "		This version is a major rewrite by Zvezdan Petkovic.
+                            "
+                            "		- introduced highlighting of doctests
+                            "		- updated keywords, built-ins, and exceptions
+                            "		- corrected regular expressions for
+                            "
+                            "		  * functions
+                            "		  * decorators
+                            "		  * strings
+                            "		  * escapes
+                            "		  * numbers
+                            "		  * space error
+                            "
+                            "		- corrected synchronization
+                            "		- more highlighting is ON by default, except
+                            "		- space error highlighting is OFF by default
+                            "
+                            " Optional highlighting can be controlled using these variables.
+                            "
+                            "   let python_no_builtin_highlight = 1
+                            "   let python_no_doctest_code_highlight = 1
+                            "   let python_no_doctest_highlight = 1
+                            "   let python_no_exception_highlight = 1
+                            "   let python_no_number_highlight = 1
+                            "   let python_space_error_highlight = 1
+                            "
+                            " All the options above can be switched on together.
+                            "
+                            "   let python_highlight_all = 1
+                            "
+                            " The use of Python 2 compatible syntax highlighting can be enforced.
+                            " The straddling code (Python 2 and 3 compatible), up to Python 3.5,
+                            " will be also supported.
+                            "
+                            "   let python_use_python2_syntax = 1
+                            "
+                            " This option will exclude all modern Python 3.6 or higher features.
+                            "
+                            
+                            " quit when a syntax file was already loaded.
+    1              0.000004 if exists("b:current_syntax")
+                              finish
+    1              0.000001 endif
+                            
+                            " Use of Python 2 and 3.5 or lower requested.
+    1              0.000002 if exists("python_use_python2_syntax")
+                              runtime! syntax/python2.vim
+                              finish
+    1              0.000000 endif
+                            
+                            " We need nocompatible mode in order to continue lines with backslashes.
+                            " Original setting will be restored.
+    1              0.000005 let s:cpo_save = &cpo
+    1   0.000010   0.000007 set cpo&vim
+                            
+    1              0.000002 if exists("python_no_doctest_highlight")
+                              let python_no_doctest_code_highlight = 1
+    1              0.000000 endif
+                            
+    1              0.000002 if exists("python_highlight_all")
+                              if exists("python_no_builtin_highlight")
+                                unlet python_no_builtin_highlight
+                              endif
+                              if exists("python_no_doctest_code_highlight")
+                                unlet python_no_doctest_code_highlight
+                              endif
+                              if exists("python_no_doctest_highlight")
+                                unlet python_no_doctest_highlight
+                              endif
+                              if exists("python_no_exception_highlight")
+                                unlet python_no_exception_highlight
+                              endif
+                              if exists("python_no_number_highlight")
+                                unlet python_no_number_highlight
+                              endif
+                              let python_space_error_highlight = 1
+    1              0.000000 endif
+                            
+                            " Keep Python keywords in alphabetical order inside groups for easy
+                            " comparison with the table in the 'Python Language Reference'
+                            " https://docs.python.org/reference/lexical_analysis.html#keywords.
+                            " Groups are in the order presented in NAMING CONVENTIONS in syntax.txt.
+                            " Exceptions come last at the end of each group (class and def below).
+                            "
+                            " The list can be checked using:
+                            "
+                            " python3 -c 'import keyword, pprint; pprint.pprint(keyword.kwlist + keyword.softkwlist, compact=True)'
+                            "
+    1              0.000003 syn keyword pythonStatement	False None True
+    1              0.000004 syn keyword pythonStatement	as assert break continue del global
+    1              0.000005 syn keyword pythonStatement	lambda nonlocal pass return with yield
+    1              0.000003 syn keyword pythonStatement	class def nextgroup=pythonFunction skipwhite
+    1              0.000002 syn keyword pythonConditional	elif else if
+    1              0.000003 syn keyword pythonRepeat	for while
+    1              0.000002 syn keyword pythonOperator	and in is not or
+    1              0.000003 syn keyword pythonException	except finally raise try
+    1              0.000002 syn keyword pythonInclude	from import
+    1              0.000001 syn keyword pythonAsync		async await
+                            
+                            " Soft keywords
+                            " These keywords do not mean anything unless used in the right context.
+                            " See https://docs.python.org/3/reference/lexical_analysis.html#soft-keywords
+                            " for more on this.
+    1              0.000012 syn match   pythonConditional   "^\s*\zscase\%(\s\+.*:.*$\)\@="
+    1              0.000004 syn match   pythonConditional   "^\s*\zsmatch\%(\s\+.*:\s*\%(#.*\)\=$\)\@="
+                            
+                            " Decorators
+                            " A dot must be allowed because of @MyClass.myfunc decorators.
+    1              0.000003 syn match   pythonDecorator	"@" display contained
+    1              0.000005 syn match   pythonDecoratorName	"@\s*\h\%(\w\|\.\)*" display contains=pythonDecorator
+                            
+                            " Python 3.5 introduced the use of the same symbol for matrix multiplication:
+                            " https://www.python.org/dev/peps/pep-0465/.  We now have to exclude the
+                            " symbol from highlighting when used in that context.
+                            " Single line multiplication.
+    1              0.000011 syn match   pythonMatrixMultiply
+                                  \ "\%(\w\|[])]\)\s*@"
+                                  \ contains=ALLBUT,pythonDecoratorName,pythonDecorator,pythonFunction,pythonDoctestValue
+                                  \ transparent
+                            " Multiplication continued on the next line after backslash.
+    1              0.000007 syn match   pythonMatrixMultiply
+                                  \ "[^\\]\\\s*\n\%(\s*\.\.\.\s\)\=\s\+@"
+                                  \ contains=ALLBUT,pythonDecoratorName,pythonDecorator,pythonFunction,pythonDoctestValue
+                                  \ transparent
+                            " Multiplication in a parenthesized expression over multiple lines with @ at
+                            " the start of each continued line; very similar to decorators and complex.
+    1              0.000017 syn match   pythonMatrixMultiply
+                                  \ "^\s*\%(\%(>>>\|\.\.\.\)\s\+\)\=\zs\%(\h\|\%(\h\|[[(]\).\{-}\%(\w\|[])]\)\)\s*\n\%(\s*\.\.\.\s\)\=\s\+@\%(.\{-}\n\%(\s*\.\.\.\s\)\=\s\+@\)*"
+                                  \ contains=ALLBUT,pythonDecoratorName,pythonDecorator,pythonFunction,pythonDoctestValue
+                                  \ transparent
+                            
+    1              0.000002 syn match   pythonFunction	"\h\w*" display contained
+                            
+    1              0.000006 syn match   pythonComment	"#.*$" contains=pythonTodo,@Spell
+    1              0.000004 syn keyword pythonTodo		FIXME NOTE NOTES TODO XXX contained
+                            
+                            " Triple-quoted strings can contain doctests.
+    1              0.000020 syn region  pythonString matchgroup=pythonQuotes
+                                  \ start=+[uU]\=\z(['"]\)+ end="\z1" skip="\\\\\|\\\z1"
+                                  \ contains=pythonEscape,@Spell
+    1              0.000012 syn region  pythonString matchgroup=pythonTripleQuotes
+                                  \ start=+[uU]\=\z('''\|"""\)+ skip=+\\["']+ end="\z1" keepend
+                                  \ contains=pythonEscape,pythonSpaceError,pythonDoctest,@Spell
+    1              0.000010 syn region  pythonRawString matchgroup=pythonQuotes
+                                  \ start=+[uU]\=[rR]\z(['"]\)+ end="\z1" skip="\\\\\|\\\z1"
+                                  \ contains=@Spell
+    1              0.000020 syn region  pythonRawString matchgroup=pythonTripleQuotes
+                                  \ start=+[uU]\=[rR]\z('''\|"""\)+ end="\z1" keepend
+                                  \ contains=pythonSpaceError,pythonDoctest,@Spell
+                            
+    1              0.000003 syn match   pythonEscape	+\\[abfnrtv'"\\]+ contained
+    1              0.000003 syn match   pythonEscape	"\\\o\{1,3}" contained
+    1              0.000005 syn match   pythonEscape	"\\x\x\{2}" contained
+    1              0.000006 syn match   pythonEscape	"\%(\\u\x\{4}\|\\U\x\{8}\)" contained
+                            " Python allows case-insensitive Unicode IDs: http://www.unicode.org/charts/
+    1              0.000007 syn match   pythonEscape	"\\N{\a\+\%(\s\a\+\)*}" contained
+    1              0.000002 syn match   pythonEscape	"\\$"
+                            
+                            " It is very important to understand all details before changing the
+                            " regular expressions below or their order.
+                            " The word boundaries are *not* the floating-point number boundaries
+                            " because of a possible leading or trailing decimal point.
+                            " The expressions below ensure that all valid number literals are
+                            " highlighted, and invalid number literals are not.  For example,
+                            "
+                            " - a decimal point in '4.' at the end of a line is highlighted,
+                            " - a second dot in 1.0.0 is not highlighted,
+                            " - 08 is not highlighted,
+                            " - 08e0 or 08j are highlighted,
+                            "
+                            " and so on, as specified in the 'Python Language Reference'.
+                            " https://docs.python.org/reference/lexical_analysis.html#numeric-literals
+    1              0.000003 if !exists("python_no_number_highlight")
+                              " numbers (including complex)
+    1              0.000005   syn match   pythonNumber	"\<0[oO]\%(_\=\o\)\+\>"
+    1              0.000004   syn match   pythonNumber	"\<0[xX]\%(_\=\x\)\+\>"
+    1              0.000007   syn match   pythonNumber	"\<0[bB]\%(_\=[01]\)\+\>"
+    1              0.000004   syn match   pythonNumber	"\<\%([1-9]\%(_\=\d\)*\|0\+\%(_\=0\)*\)\>"
+    1              0.000003   syn match   pythonNumber	"\<\d\%(_\=\d\)*[jJ]\>"
+    1              0.000009   syn match   pythonNumber	"\<\d\%(_\=\d\)*[eE][+-]\=\d\%(_\=\d\)*[jJ]\=\>"
+    1              0.000006   syn match   pythonNumber
+                                    \ "\<\d\%(_\=\d\)*\.\%([eE][+-]\=\d\%(_\=\d\)*\)\=[jJ]\=\%(\W\|$\)\@="
+    1              0.000006   syn match   pythonNumber
+                                    \ "\%(^\|\W\)\zs\%(\d\%(_\=\d\)*\)\=\.\d\%(_\=\d\)*\%([eE][+-]\=\d\%(_\=\d\)*\)\=[jJ]\=\>"
+    1              0.000001 endif
+                            
+                            " Group the built-ins in the order in the 'Python Library Reference' for
+                            " easier comparison.
+                            " https://docs.python.org/library/constants.html
+                            " http://docs.python.org/library/functions.html
+                            " Python built-in functions are in alphabetical order.
+                            "
+                            " The list can be checked using:
+                            "
+                            " python3 -c 'import builtins, pprint; pprint.pprint(dir(builtins), compact=True)'
+                            "
+                            " The constants added by the `site` module are not listed below because they
+                            " should not be used in programs, only in interactive interpreter.
+                            " Similarly for some other attributes and functions `__`-enclosed from the
+                            " output of the above command.
+                            "
+    1              0.000004 if !exists("python_no_builtin_highlight")
+                              " built-in constants
+                              " 'False', 'True', and 'None' are also reserved words in Python 3
+    1              0.000002   syn keyword pythonBuiltin	False True None
+    1              0.000003   syn keyword pythonBuiltin	NotImplemented Ellipsis __debug__
+                              " constants added by the `site` module
+    1              0.000003   syn keyword pythonBuiltin	quit exit copyright credits license
+                              " built-in functions
+    1              0.000003   syn keyword pythonBuiltin	abs all any ascii bin bool breakpoint bytearray
+    1              0.000003   syn keyword pythonBuiltin	bytes callable chr classmethod compile complex
+    1              0.000004   syn keyword pythonBuiltin	delattr dict dir divmod enumerate eval exec
+    1              0.000002   syn keyword pythonBuiltin	filter float format frozenset getattr globals
+    1              0.000008   syn keyword pythonBuiltin	hasattr hash help hex id input int isinstance
+    1              0.000003   syn keyword pythonBuiltin	issubclass iter len list locals map max
+    1              0.000003   syn keyword pythonBuiltin	memoryview min next object oct open ord pow
+    1              0.000003   syn keyword pythonBuiltin	print property range repr reversed round set
+    1              0.000003   syn keyword pythonBuiltin	setattr slice sorted staticmethod str sum super
+    1              0.000003   syn keyword pythonBuiltin	tuple type vars zip __import__
+                              " avoid highlighting attributes as builtins
+    1              0.000006   syn match   pythonAttribute	/\.\h\w*/hs=s+1
+                            	\ contains=ALLBUT,pythonBuiltin,pythonFunction,pythonAsync
+                            	\ transparent
+    1              0.000001 endif
+                            
+                            " From the 'Python Library Reference' class hierarchy at the bottom.
+                            " http://docs.python.org/library/exceptions.html
+    1              0.000002 if !exists("python_no_exception_highlight")
+                              " builtin base exceptions (used mostly as base classes for other exceptions)
+    1              0.000002   syn keyword pythonExceptions	BaseException Exception
+    1              0.000002   syn keyword pythonExceptions	ArithmeticError BufferError LookupError
+                              " builtin exceptions (actually raised)
+    1              0.000003   syn keyword pythonExceptions	AssertionError AttributeError EOFError
+    1              0.000002   syn keyword pythonExceptions	FloatingPointError GeneratorExit ImportError
+    1              0.000002   syn keyword pythonExceptions	IndentationError IndexError KeyError
+    1              0.000002   syn keyword pythonExceptions	KeyboardInterrupt MemoryError
+    1              0.000002   syn keyword pythonExceptions	ModuleNotFoundError NameError
+    1              0.000003   syn keyword pythonExceptions	NotImplementedError OSError OverflowError
+    1              0.000002   syn keyword pythonExceptions	RecursionError ReferenceError RuntimeError
+    1              0.000003   syn keyword pythonExceptions	StopAsyncIteration StopIteration SyntaxError
+    1              0.000003   syn keyword pythonExceptions	SystemError SystemExit TabError TypeError
+    1              0.000001   syn keyword pythonExceptions	UnboundLocalError UnicodeDecodeError
+    1              0.000001   syn keyword pythonExceptions	UnicodeEncodeError UnicodeError
+    1              0.000001   syn keyword pythonExceptions	UnicodeTranslateError ValueError
+    1              0.000001   syn keyword pythonExceptions	ZeroDivisionError
+                              " builtin exception aliases for OSError
+    1              0.000002   syn keyword pythonExceptions	EnvironmentError IOError WindowsError
+                              " builtin OS exceptions in Python 3
+    1              0.000001   syn keyword pythonExceptions	BlockingIOError BrokenPipeError
+    1              0.000004   syn keyword pythonExceptions	ChildProcessError ConnectionAbortedError
+    1              0.000002   syn keyword pythonExceptions	ConnectionError ConnectionRefusedError
+    1              0.000002   syn keyword pythonExceptions	ConnectionResetError FileExistsError
+    1              0.000001   syn keyword pythonExceptions	FileNotFoundError InterruptedError
+    1              0.000001   syn keyword pythonExceptions	IsADirectoryError NotADirectoryError
+    1              0.000005   syn keyword pythonExceptions	PermissionError ProcessLookupError TimeoutError
+                              " builtin warnings
+    1              0.000003   syn keyword pythonExceptions	BytesWarning DeprecationWarning FutureWarning
+    1              0.000002   syn keyword pythonExceptions	ImportWarning PendingDeprecationWarning
+    1              0.000003   syn keyword pythonExceptions	ResourceWarning RuntimeWarning
+    1              0.000001   syn keyword pythonExceptions	SyntaxWarning UnicodeWarning
+    1              0.000001   syn keyword pythonExceptions	UserWarning Warning
+    1              0.000001 endif
+                            
+    1              0.000002 if exists("python_space_error_highlight")
+                              " trailing whitespace
+                              syn match   pythonSpaceError	display excludenl "\s\+$"
+                              " mixed tabs and spaces
+                              syn match   pythonSpaceError	display " \+\t"
+                              syn match   pythonSpaceError	display "\t\+ "
+    1              0.000001 endif
+                            
+                            " Do not spell doctests inside strings.
+                            " Notice that the end of a string, either ''', or """, will end the contained
+                            " doctest too.  Thus, we do *not* need to have it as an end pattern.
+    1              0.000002 if !exists("python_no_doctest_highlight")
+    1              0.000002   if !exists("python_no_doctest_code_highlight")
+    1              0.000010     syn region pythonDoctest
+                            	  \ start="^\s*>>>\s" end="^\s*$"
+                            	  \ contained contains=ALLBUT,pythonDoctest,pythonFunction,@Spell
+    1              0.000008     syn region pythonDoctestValue
+                            	  \ start=+^\s*\%(>>>\s\|\.\.\.\s\|"""\|'''\)\@!\S\++ end="$"
+                            	  \ contained
+                              else
+                                syn region pythonDoctest
+                            	  \ start="^\s*>>>" end="^\s*$"
+                            	  \ contained contains=@NoSpell
+    1              0.000001   endif
+    1              0.000001 endif
+                            
+                            " Sync at the beginning of class, function, or method definition.
+    1              0.000010 syn sync match pythonSync grouphere NONE "^\%(def\|class\)\s\+\h\w*\s*[(:]"
+                            
+                            " The default highlight links.  Can be overridden later.
+    1              0.000002 hi def link pythonStatement		Statement
+    1              0.000001 hi def link pythonConditional		Conditional
+    1              0.000001 hi def link pythonRepeat		Repeat
+    1              0.000001 hi def link pythonOperator		Operator
+    1              0.000001 hi def link pythonException		Exception
+    1              0.000001 hi def link pythonInclude		Include
+    1              0.000001 hi def link pythonAsync			Statement
+    1              0.000001 hi def link pythonDecorator		Define
+    1              0.000001 hi def link pythonDecoratorName		Function
+    1              0.000001 hi def link pythonFunction		Function
+    1              0.000001 hi def link pythonComment		Comment
+    1              0.000001 hi def link pythonTodo			Todo
+    1              0.000001 hi def link pythonString		String
+    1              0.000001 hi def link pythonRawString		String
+    1              0.000001 hi def link pythonQuotes		String
+    1              0.000001 hi def link pythonTripleQuotes		pythonQuotes
+    1              0.000001 hi def link pythonEscape		Special
+    1              0.000002 if !exists("python_no_number_highlight")
+    1              0.000001   hi def link pythonNumber		Number
+    1              0.000000 endif
+    1              0.000002 if !exists("python_no_builtin_highlight")
+    1              0.000001   hi def link pythonBuiltin		Function
+    1              0.000000 endif
+    1              0.000002 if !exists("python_no_exception_highlight")
+    1              0.000001   hi def link pythonExceptions		Structure
+    1              0.000000 endif
+    1              0.000002 if exists("python_space_error_highlight")
+                              hi def link pythonSpaceError		Error
+    1              0.000000 endif
+    1              0.000002 if !exists("python_no_doctest_highlight")
+    1              0.000001   hi def link pythonDoctest		Special
+    1              0.000001   hi def link pythonDoctestValue	Define
+    1              0.000000 endif
+                            
+    1              0.000002 let b:current_syntax = "python"
+                            
+    1   0.000014   0.000010 let &cpo = s:cpo_save
+    1              0.000001 unlet s:cpo_save
+                            
+                            " vim:set sw=2 sts=2 ts=8 noet:
+
+SCRIPT  /home/ub/.local/share/nvim/site/pack/packer/start/nvim-treesitter/autoload/nvim_treesitter.vim
+Sourced 1 time
+Total time:   0.000054
+ Self time:   0.000054
+
+count  total (s)   self (s)
+    1              0.000005 function! nvim_treesitter#statusline(...) abort
+                              return luaeval("require'nvim-treesitter.statusline'.statusline(_A)", get(a:, 1, {}))
+                            endfunction
+                            
+    1              0.000002 function! nvim_treesitter#foldexpr() abort
+                            	return luaeval(printf('require"nvim-treesitter.fold".get_fold_indic(%d)', v:lnum))
+                            endfunction
+                            
+    1              0.000002 function! nvim_treesitter#installable_parsers(arglead, cmdline, cursorpos) abort
+                              return join(luaeval("require'nvim-treesitter.parsers'.available_parsers()") + ['all'], "\n")
+                            endfunction
+                            
+    1              0.000003 function! nvim_treesitter#installed_parsers(arglead, cmdline, cursorpos) abort
+                              return join(luaeval("require'nvim-treesitter.info'.installed_parsers()") + ['all'], "\n")
+                            endfunction
+                            
+    1              0.000003 function! nvim_treesitter#available_modules(arglead, cmdline, cursorpos) abort
+                              return join(luaeval("require'nvim-treesitter.configs'.available_modules()"), "\n")
+                            endfunction
+                            
+    1              0.000002 function! nvim_treesitter#available_query_groups(arglead, cmdline, cursorpos) abort
+                              return join(luaeval("require'nvim-treesitter.query'.available_query_groups()"), "\n")
+                            endfunction
+                            
+    1              0.000001 function! nvim_treesitter#indent() abort
+                            	return luaeval(printf('require"nvim-treesitter.indent".get_indent(%d)', v:lnum))
+                            endfunction
+
+FUNCTION  <SNR>67_select_function_wrapper()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-user/autoload/textobj/user.vim:584
+Called 3 times
+Total time:   0.002628
+ Self time:   0.000272
+
+count  total (s)   self (s)
+    3   0.000054   0.000039   let ORIG_POS = s:gpos_to_spos(getpos('.'))
+                            
+    3   0.000203   0.000024   let _ = function(a:function_name)()
+    3              0.000003   if _ is 0
+                                call s:cancel_selection(a:previous_mode, ORIG_POS)
+    3              0.000001   else
+    3              0.000008     let [motion_type, start_position, end_position] = _
+    3   0.002344   0.000181     call s:range_select(   s:gpos_to_spos(start_position),   s:gpos_to_spos(end_position),   motion_type )
+    3              0.000001   endif
+
+FUNCTION  <SNR>67_range_select()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-user/autoload/textobj/user.vim:322
+Called 3 times
+Total time:   0.002150
+ Self time:   0.000637
+
+count  total (s)   self (s)
+    3   0.001839   0.000326   execute 'normal!' s:wise(a:fallback_wise)
+    3              0.000011   call cursor(a:range_head)
+    3              0.000279   normal! o
+    3              0.000005   call cursor(a:range_tail)
+    3              0.000006   if &selection ==# 'exclusive'
+                                normal! l
+    3              0.000002   endif
+
+FUNCTION  <SNR>66_select_i()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-hydrogen/plugin/textobj/hydrogen.vim:67
+Called 3 times
+Total time:   0.000179
+ Self time:   0.000179
+
+count  total (s)   self (s)
+    3              0.000072   let start_line = search("^# %%", "cbnW")
+    3              0.000025   let end_line = search("^# %%", "nW")
+                            
+                              " Just in case the notebook is malformed and doesnt
+                              " have a cell marker at the start.
+    3              0.000006   if start_line == 0
+                                let start_line = 1
+    3              0.000002   endif
+                            
+    3              0.000003   if end_line == 0 " We are the last cell
+                                let end_line = line('$')
+    3              0.000002   else
+    3              0.000004     let end_line = end_line - 1
+    3              0.000001   endif
+                            
+    3              0.000011   let curr_pos = getpos('.')
+    3              0.000010   let start_pos = [curr_pos[0], start_line + 1 , 1, curr_pos[3]]
+    3              0.000013   let end_pos = [curr_pos[0], end_line, 0, curr_pos[3]]
+                            
+    3              0.000007   return ['V', start_pos, end_pos]
+
+FUNCTION  <SNR>13_SynSet()
+    Defined: /usr/local/share/nvim/runtime/syntax/synload.vim:26
+Called 2 times
+Total time:   0.002989
+ Self time:   0.002989
+
+count  total (s)   self (s)
+                              " clear syntax for :set syntax=OFF  and any syntax name that doesn't exist
+    2              0.000007   syn clear
+    2              0.000004   if exists("b:current_syntax")
+                                unlet b:current_syntax
+    2              0.000001   endif
+                            
+    2              0.000006   0verbose let s = expand("<amatch>")
+    2              0.000006   if s == "ON"
+                                " :set syntax=ON
+                                if &filetype == ""
+                                  echohl ErrorMsg
+                                  echo "filetype unknown"
+                                  echohl None
+                                endif
+                                let s = &filetype
+    2              0.000002   elseif s == "OFF"
+                                let s = ""
+    2              0.000001   endif
+                            
+    2              0.000002   if s != ""
+                                " Load the syntax file(s).  When there are several, separated by dots,
+                                " load each in sequence.  Skip empty entries.
+    4              0.000012     for name in split(s, '\.')
+    2              0.000006       if !empty(name)
+    2              0.001493         exe "runtime! syntax/" . name . ".vim syntax/" . name . "/*.vim"
+    2              0.001418         exe "runtime! syntax/" . name . ".lua syntax/" . name . "/*.lua"
+    2              0.000001       endif
+    4              0.000002     endfor
+    2              0.000001   endif
+
+FUNCTION  <SNR>67_wise()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-user/autoload/textobj/user.vim:719
+Called 3 times
+Total time:   0.000014
+ Self time:   0.000014
+
+count  total (s)   self (s)
+    3              0.000013   return (exists('v:motion_force') && v:motion_force != ''       ? v:motion_force       : a:default)
+
+FUNCTION  <SNR>67_save_cursor_pos()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-user/autoload/textobj/user.vim:341
+Called 3 times
+Total time:   0.000044
+ Self time:   0.000044
+
+count  total (s)   self (s)
+    3              0.000034   let s:last_cursor_gpos = getpos('.')
+    3              0.000006   return ''
+
+FUNCTION  <SNR>67_gpos_to_spos()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-user/autoload/textobj/user.vim:271
+Called 9 times
+Total time:   0.000028
+ Self time:   0.000028
+
+count  total (s)   self (s)
+    9              0.000023   return a:gpos[1:2]
+
+FUNCTION  nvim_treesitter#indent()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/nvim-treesitter/autoload/nvim_treesitter.vim:25
+Called 2 times
+Total time:   0.007241
+ Self time:   0.007241
+
+count  total (s)   self (s)
+    2              0.007239 	return luaeval(printf('require"nvim-treesitter.indent".get_indent(%d)', v:lnum))
+
+FUNCTION  <SNR>39_dopopd()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/fzf/plugin/fzf.vim:599
+Called 2 times
+Total time:   0.000014
+ Self time:   0.000014
+
+count  total (s)   self (s)
+    2              0.000007   if !exists('w:fzf_pushd')
+    2              0.000002     return
+                              endif
+                            
+                              " FIXME: We temporarily change the working directory to 'dir' entry
+                              " of options dictionary (set to the current working directory if not given)
+                              " before running fzf.
+                              "
+                              " e.g. call fzf#run({'dir': '/tmp', 'source': 'ls', 'sink': 'e'})
+                              "
+                              " After processing the sink function, we have to restore the current working
+                              " directory. But doing so may not be desirable if the function changed the
+                              " working directory on purpose.
+                              "
+                              " So how can we tell if we should do it or not? A simple heuristic we use
+                              " here is that we change directory only if the current working directory
+                              " matches 'dir' entry. However, it is possible that the sink function did
+                              " change the directory to 'dir'. In that case, the user will have an
+                              " unexpected result.
+                              if s:fzf_getcwd() ==# w:fzf_pushd.dir && (!&autochdir || w:fzf_pushd.bufname ==# bufname(''))
+                                execute w:fzf_pushd.command s:escape(w:fzf_pushd.origin)
+                              endif
+                              unlet! w:fzf_pushd
+
+FUNCTION  <SNR>1_LoadFTPlugin()
+    Defined: /usr/local/share/nvim/runtime/ftplugin.vim:14
+Called 2 times
+Total time:   0.006467
+ Self time:   0.006467
+
+count  total (s)   self (s)
+    2              0.000015     if exists("b:undo_ftplugin")
+                                  exe b:undo_ftplugin
+                                  unlet! b:undo_ftplugin b:did_ftplugin
+    2              0.000002     endif
+                            
+    2              0.000009     let s = expand("<amatch>")
+    2              0.000003     if s != ""
+    2              0.000016       if &cpo =~# "S" && exists("b:did_ftplugin")
+                            	" In compatible mode options are reset to the global values, need to
+                            	" set the local values also when a plugin was already used.
+                            	unlet b:did_ftplugin
+    2              0.000001       endif
+                            
+                                  " When there is a dot it is used to separate filetype names.  Thus for
+                                  " "aaa.bbb" load "aaa" and then "bbb".
+    4              0.000021       for name in split(s, '\.')
+                                    " Load Lua ftplugins after Vim ftplugins _per directory_
+                                    " TODO(clason): use nvim__get_runtime when supports globs and modeline
+    2              0.001132         exe printf('runtime! ftplugin/%s.vim ftplugin/%s.lua', name, name)
+    2              0.003309         exe printf('runtime! ftplugin/%s_*.vim ftplugin/%s_*.lua', name, name)
+    2              0.001923         exe printf('runtime! ftplugin/%s/*.vim ftplugin/%s/*.lua', name, name)
+    4              0.000004       endfor
+    2              0.000001     endif
+
+FUNCTION  17()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/vim-textobj-user/autoload/textobj/user.vim:565
+Called 3 times
+Total time:   0.002704
+ Self time:   0.000076
+
+count  total (s)   self (s)
+    3              0.000016   let specs = self.obj_specs[a:obj_name]
+    3   0.002686   0.000057   call {s:FUNCTION_IMPL_TABLE[a:spec_name]}(   specs[a:spec_name . '-function'],   a:spec_name,   a:previous_mode )
+
+FUNCTION  <SNR>2_LoadIndent()
+    Defined: /usr/local/share/nvim/runtime/indent.vim:13
+Called 2 times
+Total time:   0.001045
+ Self time:   0.001045
+
+count  total (s)   self (s)
+    2              0.000004     if exists("b:undo_indent")
+                                  exe b:undo_indent
+                                  unlet! b:undo_indent b:did_indent
+    2              0.000001     endif
+    2              0.000005     let s = expand("<amatch>")
+    2              0.000005     if s != ""
+    2              0.000003       if exists("b:did_indent")
+                            	unlet b:did_indent
+    2              0.000001       endif
+                            
+                                  " When there is a dot it is used to separate filetype names.  Thus for
+                                  " "aaa.bbb" load "indent/aaa.vim" and then "indent/bbb.vim".
+    4              0.000009       for name in split(s, '\.')
+    2              0.000524         exe 'runtime! indent/' . name . '.vim'
+    2              0.000475         exe 'runtime! indent/' . name . '.lua'
+    4              0.000002       endfor
+    2              0.000001     endif
+
+FUNCTION  <SNR>41_try()
+    Defined: ~/.local/share/nvim/site/pack/packer/start/indent-blankline.nvim/plugin/indent_blankline.vim:7
+Called 57 times
+Total time:   0.019770
+ Self time:   0.019770
+
+count  total (s)   self (s)
+   57              0.000082     try
+   57              0.019347         execute a:cmd
+                                catch /E12/
+                                    return
+   57              0.000071     endtry
+
+FUNCTIONS SORTED ON TOTAL TIME
+count  total (s)   self (s)  function
+   57   0.019770             <SNR>41_try()
+    2   0.007241             nvim_treesitter#indent()
+    2   0.006467             <SNR>1_LoadFTPlugin()
+    2   0.002989             <SNR>13_SynSet()
+    3   0.002704   0.000076  17()
+    3   0.002628   0.000272  <SNR>67_select_function_wrapper()
+    3   0.002150   0.000637  <SNR>67_range_select()
+    2   0.001045             <SNR>2_LoadIndent()
+    3   0.000179             <SNR>66_select_i()
+    3   0.000044             <SNR>67_save_cursor_pos()
+    9   0.000028             <SNR>67_gpos_to_spos()
+    2   0.000014             <SNR>39_dopopd()
+    3   0.000014             <SNR>67_wise()
+
+FUNCTIONS SORTED ON SELF TIME
+count  total (s)   self (s)  function
+   57              0.019770  <SNR>41_try()
+    2              0.007241  nvim_treesitter#indent()
+    2              0.006467  <SNR>1_LoadFTPlugin()
+    2              0.002989  <SNR>13_SynSet()
+    2              0.001045  <SNR>2_LoadIndent()
+    3   0.002150   0.000637  <SNR>67_range_select()
+    3   0.002628   0.000272  <SNR>67_select_function_wrapper()
+    3              0.000179  <SNR>66_select_i()
+    3   0.002704   0.000076  17()
+    3              0.000044  <SNR>67_save_cursor_pos()
+    9              0.000028  <SNR>67_gpos_to_spos()
+    2              0.000014  <SNR>39_dopopd()
+    3              0.000014  <SNR>67_wise()
+

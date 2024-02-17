@@ -1,0 +1,1 @@
+/rest.sh > firefox.html &&  firefox firefox.html
