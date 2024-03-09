@@ -7,7 +7,7 @@ from xnat.object_oriented import *
 from dicom_utils.capestart_related import collate_nii_foldertree
 
 from fran.utils.string import  int_to_str
-from mask_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
+from label_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
 from fran.utils.fileio import maybe_makedirs
 
 
@@ -91,13 +91,12 @@ if __name__ == "__main__":
 
 
     fldr = Path("/s/datasets_bkp/crc_project/nifti/masks_ub/finalised/")
+    fpath = Path("/s/xnat_shadow/crc/wxh/masks_manual_final/crc_CRC326_20140110_ABDOMEN.nrrd")
 # %%
-
-
 
     for fpath in fldr.glob("*"):
         if fpath.is_file():
-            upload_nii(fpath,label="LABEL_GT",tags=['manual'])
+            upload_nii(fpath,label="LABEL_GT",xnat_tags=['manual'])
 
 
 # %% [markdown]

@@ -1,5 +1,6 @@
 
 # %%
+
 import os,re
 from shutil import SameFileError
 from pydicom import dcmread
@@ -462,12 +463,12 @@ class Scn(_ExpScn):
 
 
  
-def upload_nii(fpath,label,tags:list=[]):
+def upload_nii(fpath,has_date=True,fpath_tags=['case_id'], xnat_tags:list=[], label=""):
         '''
         retrieves project_id, pt_name, and scan from fpath and adds it as a resource
         '''
         
-        exps = fname_to_exp(fpath.name)
+        exps = fname_to_exp(fpath.name,has_date=has_date)
         scans_matched=[]
         for e in exps:
             for scn in e.scans:
@@ -480,8 +481,9 @@ def upload_nii(fpath,label,tags:list=[]):
         if len(scans_matched)!=1: 
             tr()
         scan_matched = scans_matched[0]
-        scan_matched.add_rsc(fpath,label=label,tags=tags)
+        scan_matched.add_rsc(fpath,label=label,tags=xnat_tags)
        
+
 def upload_nii_nodesc(fpath:Union[str,Path],label,tags:list=[]):
         '''
         retrieves project_id, pt_name. Without description given, it uploads the nii to the first scan in exp.scans list
@@ -499,14 +501,19 @@ def upload_nii_nodesc(fpath:Union[str,Path],label,tags:list=[]):
         except:
             print("Unmatched file: {0}\n pt: {1}\nscan date: {2}".format(fpath, scn.pt_id,scn.date))
 
-def fname_to_exp(fname:str):
+# fpath2 = Path("/home/ub/tmp/LIDC_0078.nii.gz")
+def fname_to_exp(fname:str, has_date:bool):
         info = info_from_filename(fname)
-        proj_title, case_id ,date=info['proj_title'], info['case_id'],info['date']
+        proj_title, case_id =info['proj_title'], info['case_id']
         sub = Subj.from_pt_id(case_id,proj_title)
         exp_matched=[]
-        for exp in sub.exps:
-            if exp.date ==date:
-                exp_matched.append(exp)
+        if has_date==True:
+            date = info['date']
+            for exp in sub.exps:
+                if exp.date ==date:
+                    exp_matched.append(exp)
+        else:
+            exps = sub.exps[0]
         return exp_matched
 
 @str_to_path(0)
@@ -530,7 +537,9 @@ def get_matching_rsc(fpath,target_label="IMAGE"):
 # %%
 if __name__ == "__main__":
         
-    proj_title = 'litq'
+    proj_title = 'lidc_unable_to_delete'
+    proj = central.select.project(proj_title)
+    proj.exists()
     proj = Proj(proj_title)
     label = "MASK"
 
@@ -550,10 +559,33 @@ if __name__ == "__main__":
     filesets = df.img_fpaths, df.mask_fpaths
     maybe_makedirs(fldrs)
 # %%
+    consts = [
+        ("xnat:subjectData/SUBJECT_ID","LIKE","XNAT_S01274"),
+        # ("xnat:subjectData/label","=",case_id),
+    ]
+    ex = central.select('xnat:subjectData').where(consts)
+    ss = central.select("//subject").where(consts)
+    ss = central.select("/project/lidc/subject/LIDC_0078")
+    ss = central.select("/project/lidc0/subjects")
+
+    s.delete()
+# %%
+    for s in ss:
+        try:
+            s.delete()
+        except:
+            exps = s.experiments()
+            for exp in s.experiments():
+                try:
+                    tr()
+                    exp.delete()
+                except:
+                    pass
 # %%
         
 
 
+# %%
 
 # %%
     fldr_i = Path("/scn/datasets_bkp/litq/sitk/images")
@@ -594,3 +626,4 @@ if __name__ == "__main__":
     outputs=[proj_title,case_id]
 
     out = info_from_filename(fname)
+    
