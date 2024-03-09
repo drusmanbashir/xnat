@@ -2,3 +2,6 @@
 */archived/
 *pycache*
 .project_root
+*.nii
+*.nii.gz
+
