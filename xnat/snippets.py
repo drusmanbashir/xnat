@@ -8,35 +8,48 @@ from dicom_utils.capestart_related import collate_nii_foldertree
 
 from fran.utils.string import  int_to_str
 from label_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
+from xnat.object_oriented import *
 from fran.utils.fileio import maybe_makedirs
 
 
 # %%
 if __name__ == "__main__":
-    proj_title='lidc'
+    proj_title='lidc2'
     proj = Proj(proj_title)
+    df= proj.create_report(mask_label="LM_GT",img_label ="IMAGE", search_level= "exps",add_label_info=True)
+    proj.export_nii(symlink=True,overwrite=True,ensure_fg=True)
+    subs = proj.subjects()
+
+    csv_fn = "/tmp/img_mask_fpaths.csv"
+
+    df = pd.read_csv(csv_fn)
+    df.dropna(inplace=True)
+    fldrs = proj.export_folder/"images", proj.export_folder/"masks"
+    [maybe_makedirs(f) for f in fldrs]
+    filesets=  df.img_fpaths, df.mask_fpaths
+
 # %%
 # %% [markdown]
 ## Download rscs with criteria
 # %%
-    subs = proj.subs
-    sub_ids = [sub.get_pt_id(False) for sub in subs]
+    sub_ids = [Subj(sub).get_pt_id(False) for sub in subs]
     dest_fldr = "/s/tmp"
 # %%
-    for sub in subs:
-        scns = sub.scans
-        for scn  in scns:
-                scn_rscs = scn.resources()
-                labels = [r.label() for r in scn_rscs]
-                if "MASK_THICK" not in labels and "IMAGE_THICK" in labels:
-                    rscs = [r for r in scn_rscs if r.label() == "IMAGE_THICK"]
-                    for  r in rscs:
-                        r.get(dest_fldr,extract=True)
-                    
-       
-    collate_nii_foldertree(dest_fldr,"/s/xnat_shadow/nodes/test")
 # %%
-    sub.download_rscs("IMAGE","/s/xnat_shadow/crc/test/images/")
+
+    fldr = Path("/s/xnat_shadow/lidctmp")
+    fldr1 = fldr/("images")
+    fldr2 = fldr/("masks")
+    maybe_makedirs([fldr1,fldr2])
+# %%
+    for sub in subs[:5]:
+        sub = Subj(sub)
+        sub.download_rscs("IMAGE",fldr1)
+        sub.download_rscs("LM_GT",fldr2)
+# %%
+    collate_nii_foldertree(fldr2,fldr2)
+    collate_nii_foldertree(fldr1,fldr1)
+# %%
     # if any(r.label()=='LABEL_GT' for r in rscs):
     #     sub.download_rscs("LABEL_GT","/s/xnat_shadow/crc/test/labels/")
 # %%

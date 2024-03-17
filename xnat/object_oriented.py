@@ -1,8 +1,9 @@
-
 # %%
 
 import os,re
+import numpy as np
 from shutil import SameFileError
+from label_analysis.helpers import get_labels
 from pydicom import dcmread
 from typing import Union
 from fastcore.basics import listify, store_attr
@@ -22,12 +23,13 @@ from bs4 import BeautifulSoup as BS
 from bs4.element import Tag
 from pyxnat import Interface
 from pyxnat.core.resources import Subject, Experiment, Scan, Project
-from fran.utils.helpers import  pat_nodesc
+from fran.utils.helpers import  get_pbar, pat_nodesc
 
 from fran.utils.fileio import load_file, load_xml, load_yaml, maybe_makedirs, save_xml, str_to_path
 from xnat.helpers import fix_filename, fn_to_attr, readable_text
 import itertools as il
 import errno
+pbar= get_pbar()
 
 
 from contextlib     import closing
@@ -174,7 +176,7 @@ class Proj(_BaseObj):
         esp = central.select.project(proj_title)
         print("Project {0} exists: {1}".format(proj_title, esp.exists()))
         super().__init__(esp)
-        self.subs = self.get_subs_all()
+        # self.subs = self.get_subs_all()
 
     def get_subs_all(self):
         subs = self.esp.subjects()
@@ -184,8 +186,9 @@ class Proj(_BaseObj):
     def get_subs_with_rsc(self,label="MASK"):
         subs_with_rsc=[]
         for ss in self.subs:
+            ss= Subj(ss)
             rscs = ss.rscs
-            mask_present = any([r.label()==label for r in rscs])
+            mask_present = any([rsc.label()==label for rsc in rscs])
             if mask_present==True:
                 subs_with_rsc.append(ss)
         return subs_with_rsc
@@ -202,33 +205,44 @@ class Proj(_BaseObj):
                     print("Deleteting resource {0}".format(rsc))
                     rsc.delete() 
 
-    def create_report(self,mask_label="MASK_THICK") -> pd.DataFrame:
-        img_label = mask_label.replace("MASK","IMAGE")
+    @property
+    def subs(self): return self.subjects()
+    # def create_report(self,mask_label="MASK_THICK") -> pd.DataFrame:
+    #     img_label = mask_label.replace("MASK","IMAGE")
+    #     csv_label ="IMAGE_MASK_FPATHS"
+    #     ss = self.get_subs_with_rsc(mask_label)
+    #     img_fpaths,mask_fpaths=[],[]
+    #     for scn in ss:
+    #             scns = [scn for scn in scn.scans if scn.has_rsc(mask_label)]
+    #             for sc in scns:
+    #                 mask_fpaths.append(sc.get_rsc_fpaths(mask_label)[0])
+    #                 img_fpaths.append(sc.get_rsc_fpaths(img_label)[0])
+    #     tmp = list(zip(img_fpaths,mask_fpaths))
+    #     df = pd.DataFrame(tmp, columns = ["img_fpaths","mask_fpaths"])
+    #     csv_fn = Path("/tmp/img_mask_fpaths.csv")
+    #     df.to_csv(csv_fn,index=False)
+    #     self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
+    #     return df
+    #
+    def create_report(self, mask_label, img_label=None, search_level='scans',add_label_info=True) -> pd.DataFrame:
+        '''
+        add_label_info: add label info to the report. Slows it down
+        '''
+        
+        assert search_level in ['exps','scans'], print("Choose from 'exp' or 'scn'")
+        tag = "resource" if search_level=="exps" else "file"
+        if not img_label:
+            img_label = mask_label.replace("MASK","IMAGE")
         csv_label ="IMAGE_MASK_FPATHS"
         ss = self.get_subs_with_rsc(mask_label)
         img_fpaths,mask_fpaths=[],[]
-        for scn in ss:
-                scns = [scn for scn in scn.scans if scn.has_rsc(mask_label)]
-                for sc in scns:
-                    mask_fpaths.append(sc.get_rsc_fpaths(mask_label)[0])
-                    img_fpaths.append(sc.get_rsc_fpaths(img_label)[0])
-        tmp = list(zip(img_fpaths,mask_fpaths))
-        df = pd.DataFrame(tmp, columns = ["img_fpaths","mask_fpaths"])
-        csv_fn = Path("/tmp/img_mask_fpaths.csv")
-        df.to_csv(csv_fn,index=False)
-        self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
-        return df
-
-    def create_report2(self,mask_label="MASK_THICK") -> pd.DataFrame:
-        img_label = mask_label.replace("MASK","IMAGE")
-        csv_label ="IMAGE_MASK_FPATHS"
-        ss = self.get_subs_with_rsc(mask_label)
-        img_fpaths,mask_fpaths=[],[]
-        for scn in ss:
-                scns = [scn for scn in scn.scans if scn.has_rsc(mask_label)]
-                for sc in scns:
-                    xm = sc.x
-                    fs = xm.find_all("xnat:file")
+        print("Adding filepath info")
+        for sub in pbar(ss):
+                ses = getattr(sub,search_level)
+                ses = [se for se in ses if se.has_rsc(mask_label)]
+                for se in ses:
+                    xm = se.x
+                    fs = xm.find_all(f"xnat:{tag}")
                     labels = [f['label'] for f in fs]
                     if img_label in labels and mask_label in labels:
                         img_x = [f for f in fs if f['label'] ==img_label][0]
@@ -239,10 +253,25 @@ class Proj(_BaseObj):
                         img_fpaths.append(str(img_fpath))
         tmp = list(zip(img_fpaths,mask_fpaths))
         df = pd.DataFrame(tmp, columns = ["img_fpaths","mask_fpaths"])
+        if add_label_info==True:
+            label_info = self.get_label_info(mask_fpaths)
+            df['labels'] = label_info
         csv_fn = Path("/tmp/img_mask_fpaths.csv")
         df.to_csv(csv_fn,index=False)
         self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
         return df
+
+    def get_label_info(self,mask_fnames):
+        labels=[]
+        print("Adding label info")
+        for mask_fn in pbar(mask_fnames):
+            lm = sitk.ReadImage(mask_fn)
+            labs=get_labels(lm)
+            if len(labs)==0:
+                labs= np.nan
+            labels.append(labs)
+        return labels
+
 
     def _fpath_from_catalog(self,xm):
                         cat_m = Path(xm['URI'])
@@ -253,13 +282,15 @@ class Proj(_BaseObj):
                         return fpath
 
 
-    def export_nii(self,symlink=True,overwrite=False):
+    def export_nii(self,symlink=True,overwrite=False,ensure_fg=True):
         '''
         Project must already have the csv_file resource "IMAGE_MASK_FPATHS"
         '''
         rc = self.resource("IMAGE_MASK_FPATHS")
         csv_fn = rc.get("/tmp/", extract=True)[0]
         df = pd.read_csv(csv_fn)
+        if ensure_fg==True:
+            df.dropna(inplace=True)
         fldrs = self.export_folder/"images", self.export_folder/"masks"
         [maybe_makedirs(f) for f in fldrs]
         filesets=  df.img_fpaths, df.mask_fpaths
@@ -302,11 +333,12 @@ class Subj(GetAttr):
         return Exp(self.get_pt_id(), exp)
 
     def download_rscs(self,labels,dest_folder):
+        tr()
         labels =listify(labels)
         for label in labels:
-            rscs = [r for r in self.rscs if r.label() == label]
-            for r in rscs:
-                r.get(dest_folder,extract=True)
+            rscs = [rsc for rsc in  self.rscs if rsc.label() == label]
+            for rsc in rscs:
+                rsc.get(dest_folder,extract=True)
 
     @property
     def exps(self):
@@ -323,7 +355,7 @@ class Subj(GetAttr):
     def get_rscs(self):
         r=[]
         rscs_s = [scn.resources() for scn in self.scans]
-        rscs_r = [scn.resources() for scn in self.exps]
+        rscs_r = [exp.resources() for exp in self.exps]
         for rsc_set in rscs_r+ rscs_s:
           r.append([Rsc(rr) for rr in rsc_set])
         self.rscs = list(il.chain.from_iterable(r))

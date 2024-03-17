@@ -1,7 +1,10 @@
 # %%
+from label_analysis.helpers import get_labels
 import pandas as pd
 import ipdb
-from xnat.object_oriented import upload_nii_nodesc
+from xnat.object_oriented import Proj, upload_nii_nodesc
+
+from fran.utils.fileio import maybe_makedirs
 tr = ipdb.set_trace
 
 from pathlib import  Path
@@ -14,60 +17,34 @@ import numpy as np
 import pylidc as pl
 
 from fran.utils.imageviewers import ImageMaskViewer
-scans = pl.query(pl.Scan).filter(pl.Scan.slice_thickness <= 1,
-                                 pl.Scan.pixel_spacing <= 0.6)
-scans = pl.query(pl.Scan).filter()
-print(scans.count())
-# => 31
-
-pid = 'LIDC-IDRI-0078'
-scan = pl.query(pl.Scan).filter(pl.Scan.patient_id == pid).first()
-# %%
-
-ann = pl.query(pl.Annotation).first()
-q = pl.query(pl.Annotation)
-f = q.first()
-iteri = iter(q)
-aa = next(iteri)
-print(ann.scan.patient_id)
-contours = ann.contours
-# %%
-
-print(contours[1])
-# %%
-vol = ann.scan.to_volume()
-
-padding = [(30,10), (10,25), (0,0)]
-
-m2 = np.zeros_like(vol)
-# %%
-for ann in iter(q):
-    bbox = ann.bbox_matrix()
-    sides = bbox[:,1]-bbox[:,0]
-    mask = ann.boolean_mask(bbox = bbox)
-    try:
-        m2[bbox[0][0]:bbox[0][1],bbox[1][0]:bbox[1][1],bbox[2][0]:bbox[2][1]] = mask
-    except:
-        pass
-
-# %%
-# %%
-dics = []
-for idx, scan in enumerate(scans):
-    scan = scans[0]
 
 class LIDCProcessor():
     def __init__(self) -> None:
         
+        self.proj_title = "lidc2"
+        self.proj = Proj("lidc2")
         self.scans = pl.query(pl.Scan).filter()
         print(self.scans.count())
-    def process_scan(self,scan,clevel=.35):
-        vol = scan.to_volume()
-        lm_np= np.zeros_like(vol)
-        lm_np = self.fill_lm(scan,lm_np,clevel)
-        img, lm = self.scan_lm_to_nii(scan.spacings,vol,lm_np)
+        self.imgs_fldr = Path("/home/ub/tmp/images")
+        self.lm_fldr = Path("/home/ub/tmp/masks")
 
-        return img,lm
+    def process_scan(self,scan,clevel=.35):
+        case_id = self.get_case_id(scan)
+        fn = "{0}_{1}.nii.gz".format(self.proj_title,case_id)
+        fn_img = self.imgs_fldr/fn
+        fn_lm = self.lm_fldr/fn
+        if all([fn.exists() for fn in [fn_img,fn_lm]]):
+            print("IMAGE and LM already in tmp folder")
+        else:
+            vol = scan.to_volume()
+            lm_np= np.zeros_like(vol)
+            lm_np = self.fill_lm(scan,lm_np,clevel)
+            img, lm = self.scan_lm_to_nii(scan.spacings,vol,lm_np)
+
+            sitk.WriteImage(img,fn_img)
+            sitk.WriteImage(lm,fn_lm)
+        self.maybe_upload_scan_rscs(scan,fn_img,fn_lm)
+
 
 
     def get_case_id(self,scan):
@@ -104,67 +81,125 @@ class LIDCProcessor():
 
         lm = sitk.GetImageFromArray(lm_np2)
         lm.SetSpacing(spacings)
-
-
         return img,lm
 
+    def maybe_create_subject(self,scan):
+        case_id = self.get_case_id(scan)
+        subj = self.proj.subject(case_id)
+        if not subj.exists():
+            print("Creating subject {0}".format(case_id))
+            subj.create()
+        else:
+            print("Using existing subject {0}".format(case_id))
+        return subj
+
+    def maybe_upload_scan_rscs(self,scan, fn_img,fn_lm):
+        subj = self.maybe_create_subject(scan)
+        case_id = self.get_case_id(scan)
+        exp = subj.experiment("ct_{}".format(case_id))
+        if not exp.exists():
+            exp.create(experiments = 'xnat:ctSessionData')
+
+        print("Creating IMAGE and LM_GT resources for {0}".format(scan.patient_id))
+        self.maybe_upload_rsc(exp,"IMAGE",fn_img)
+        self.maybe_upload_rsc(exp,"LM_GT",fn_lm)
+        print("done")
+
+    def maybe_upload_rsc(self,exp,label,fpath):
+
+        rsc = exp.resource(label)
+        if not rsc.exists():
+            print("Uploading {0} as resource label {1}".format(fpath, label))
+            rsc.file(fpath.name).put(fpath)
+        else:
+            print("File already in resource {0}".format(label))
 
         # upload_nii_nodesc(fname_out.name,label="NIFTI")
 
+# %%
 if __name__ == "__main__":
     L = LIDCProcessor()
+    for indx in range(200):
+        scn = L.scans[indx]
+
+        L.process_scan(scn)
+# %%
     scn = L.scans[0]
+    sid = "0028"
+    sids = [s for s in L.scans if sid in s.patient_id][0]
+
+
+    case_id = L.get_case_id(scn)
+
     im,lm = L.process_scan(scn)
-    sitk.WriteImage(im, 'im.nii.gz')
-    sitk.WriteImage(lm, 'lm.nii.gz')
 
-df = pd.DataFrame(dics)
-df.to_csv("lidc_headers_info.csv", index=False)
+    proj_title = 'lidc2'
+    proj = Proj(proj_title)
+
+    fn_img = Path("/home/ub/tmp/images/{0}_{1}.nii.gz".format(proj_title,case_id))
+    fn_lm = Path("/home/ub/tmp/masks/{0}_{1}.nii.gz".format(proj_title,case_id))
+
+    maybe_makedirs("/home/ub/tmp/images")
+    maybe_makedirs("/home/ub/tmp/masks")
+    sitk.WriteImage(im,fn_img)
+    sitk.WriteImage(lm,fn_lm)
+
+    subj = proj.subject(case_id)
+    subj.create()
+
+    subj.experiment("ct").create(experiments = 'xnat:ctSessionData')
+    exps =  subj.experiments()
+
+    rsc = exp.resource("IMAGE").file(fn_img.name).put(fn_img)
+    rsc = exp.resource("LM_GT").file(fn_lm.name).put(fn_lm)
+
+
+    subj.experiments()[0]
+# %%
+    case_id = L.get_case_id(scn)
+    fn = "{0}_{1}.nii.gz".format(L.proj_title,case_id)
+    fn_img = L.imgs_fldr/fn
+    fn_lm = L.lm_fldr/fn
+    if all([fn.exists() for fn in [fn_img,fn_lm]]):
+        print("IMAGE and LM already in tmp folder")
+    else:
+        vol = scn.to_volume()
+        lm_np= np.zeros_like(vol)
+        lm_np = L.fill_lm(scn,lm_np,clevel=.35)
+        img, lm = L.scan_lm_to_nii(scn.spacings,vol,lm_np)
+
+        sitk.WriteImage(im,fn_img)
+        sitk.WriteImage(lm,fn_lm)
+
+# %%
+        subj = L.maybe_create_subject(scan)
+        exp = subj.experiment("ct_{0}".format())
+        if not exp.exists():
+            exp.create(experiments = 'xnat:ctSessionData')
+
+
 # %%
 
-
-# Query for a scan, and convert it to an array volume.
-
-mask= np.zeros_like(vol)
-nods = scan.cluster_annotations()
-# %%
-for anns in nods :
-
-# Perform a consensus consolidation and 50% agreement level.
-# We pad the slices to add context for viewing.
-    cmask,cbbox,masks = consensus(anns, clevel=0.35,) # liberal roi
-                                  #pad=[(20,20), (20,20), (0,0)])
-
-    cmask_int = np.zeros(cmask.shape)
-
-    classes = [ann.malignancy for ann in anns]
-    class_  =int(np.round(np.average(classes)))
-    cmask_int[cmask]= class_
-
-    mask[cbbox] = cmask_int
+        case_id = L.get_case_id(scan)
+        fn = "{0}_{1}.nii.gz".format(L.proj_title,case_id)
+        fn_img = L.imgs_fldr/fn
+        fn_lm = L.lm_fldr/fn
+        if all([fn.exists() for fn in [fn_img,fn_lm]]):
+            print("IMAGE and LM already in tmp folder")
+        else:
+            vol = scan.to_volume()
+            lm_np= np.zeros_like(vol)
+            lm_np = L.fill_lm(scan,lm_np,clevel)
+            img, lm = L.scan_lm_to_nii(scan.spacings,vol,lm_np)
 
 
 # %%
-vol2 = vol.transpose(2,0,1)
+            scan =sids
+            vol = scan.to_volume()
+            lm_np= np.zeros_like(vol)
+            lm_np = L.fill_lm(scan,lm_np,clevel=.34)
+            img, lm = L.scan_lm_to_nii(scan.spacings,vol,lm_np)
+            get_labels(lm)
 
-img = sitk.GetImageFromArray(vol2)
-img.SetSpacing(scan.spacings)
-sitk.WriteImage(img, 'vol.nii.gz')
-# %%
 
-ann = anns[0]
-# %%
-ImageMaskViewer([vol,mask])
-# %%
-fig,ax = plt.subplots(1,2,figsize=(5,3))
-
-ax[0].imshow(vol[bbox][:,:,2], cmap=plt.cm.gray)
-ax[0].axis('off')
-
-ax[1].imshow(mask[:,:,2], cmap=plt.cm.gray)
-ax[1].axis('off')
-
-plt.tight_layout()
-#plt.savefig("../images/mask_bbox.png", bbox_inches="tight")
-plt.show()
 # %%

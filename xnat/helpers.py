@@ -3,7 +3,6 @@
 from pathlib import Path
 import shutil
 import ipdb
-from fran.data import collate
 tr = ipdb.set_trace
 
 from fran.utils.fileio import maybe_makedirs, str_to_path
