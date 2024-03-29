@@ -1,38 +1,50 @@
 # %%
 
-import os,re
-import numpy as np
+import itertools as il
+import os
+import re
+import shutil
 from shutil import SameFileError
+from typing import Union
+
+import ipdb
+import numpy as np
+import pandas as pd
+import SimpleITK as sitk
+from fastcore.basics import listify, store_attr
 from label_analysis.helpers import get_labels
 from pydicom import dcmread
-from typing import Union
-from fastcore.basics import listify, store_attr
-import pandas as pd
-import itertools as il
-import SimpleITK as sitk
-import ipdb
-import shutil
-from fran.utils.imageviewers import ImageMaskViewer
 
-from fran.utils.imageviewers import view_sitk
+from fran.utils.imageviewers import ImageMaskViewer, view_sitk
 from fran.utils.string import cleanup_fname, info_from_filename
+
 tr = ipdb.set_trace
-from fastcore.basics import GetAttr, patch_to
+import errno
+import itertools as il
 from pathlib import Path
+
 from bs4 import BeautifulSoup as BS
 from bs4.element import Tag
+from fastcore.basics import GetAttr, patch_to
 from pyxnat import Interface
-from pyxnat.core.resources import Subject, Experiment, Scan, Project
-from fran.utils.helpers import  get_pbar, pat_nodesc
-
-from fran.utils.fileio import load_file, load_xml, load_yaml, maybe_makedirs, save_xml, str_to_path
+from pyxnat.core.resources import Experiment, Project, Scan, Subject
 from xnat.helpers import fix_filename, fn_to_attr, readable_text
-import itertools as il
-import errno
+
+from fran.utils.fileio import (load_file, load_xml, load_yaml, maybe_makedirs,
+                               save_xml, str_to_path)
+from fran.utils.helpers import get_pbar, pat_nodesc
+
 pbar= get_pbar()
 
 
-from contextlib     import closing
+from contextlib import closing
+
+def is_lm(label):
+    candidates = ["MASK", "LABEL","LM"]
+    if any ([x in label for x in candidates]):
+        return True
+    else:
+        return False
 
 def login():
     xnat_fn = os.environ["XNAT_CONFIG_PATH"]
@@ -171,6 +183,7 @@ class _ExpScn(_BaseObj):
 
 class Proj(_BaseObj):
     def __init__(self, proj_title:str) : 
+        self.name = proj_title
         central , xnat_shadow_folder= login()
         self.export_folder = Path(xnat_shadow_folder)/proj_title
         esp = central.select.project(proj_title)
@@ -224,42 +237,46 @@ class Proj(_BaseObj):
     #     self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
     #     return df
     #
-    def create_report(self, mask_label, img_label=None, search_level='scans',add_label_info=True) -> pd.DataFrame:
+    def create_report(self, add_label_info=True) -> pd.DataFrame:
         '''
         add_label_info: add label info to the report. Slows it down
         '''
-        
-        assert search_level in ['exps','scans'], print("Choose from 'exp' or 'scn'")
-        tag = "resource" if search_level=="exps" else "file"
-        if not img_label:
-            img_label = mask_label.replace("MASK","IMAGE")
-        csv_label ="IMAGE_MASK_FPATHS"
-        ss = self.get_subs_with_rsc(mask_label)
-        img_fpaths,mask_fpaths=[],[]
+        excluded_labels =['DICOM'] # makes a v large df
+        if 'no-dicom' in self.keywords: 
+            search_level = 'exps'
+            tag = "resource"
+        else:
+            search_level = 'scans'
+            tag = "file"
+        csv_label ="RESOURCES"
         print("Adding filepath info")
-        for sub in pbar(ss):
+        df =[]
+        for sub in pbar(self.subs):
+                sub = Subj(sub)
+                case_id = sub.get_pt_id()
                 ses = getattr(sub,search_level)
-                ses = [se for se in ses if se.has_rsc(mask_label)]
                 for se in ses:
                     xm = se.x
                     fs = xm.find_all(f"xnat:{tag}")
-                    labels = [f['label'] for f in fs]
-                    if img_label in labels and mask_label in labels:
-                        img_x = [f for f in fs if f['label'] ==img_label][0]
-                        mask_x = [f for f in fs if f['label'] ==mask_label][0]
-                        mask_fpath = self._fpath_from_catalog(mask_x)
-                        img_fpath = self._fpath_from_catalog(img_x)
-                        mask_fpaths.append(str(mask_fpath))
-                        img_fpaths.append(str(img_fpath))
-        tmp = list(zip(img_fpaths,mask_fpaths))
-        df = pd.DataFrame(tmp, columns = ["img_fpaths","mask_fpaths"])
-        if add_label_info==True:
-            label_info = self.get_label_info(mask_fpaths)
-            df['labels'] = label_info
-        csv_fn = Path("/tmp/img_mask_fpaths.csv")
+                    for f in fs:
+                        label = f['label']
+                        if label not in excluded_labels :
+                            fpath = proj._fpath_from_catalog(f)
+                            dici = {'case_id':case_id,'label':label,'fpath':fpath}
+                            if add_label_info==True:
+                                dici = self.maybe_add_labels(label,fpath,dici)
+                            df.append(dici)
+        df = pd.DataFrame(df)
+        csv_fn = Path("/tmp/rsc_fpaths.csv")
         df.to_csv(csv_fn,index=False)
         self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
         return df
+
+    def maybe_add_labels(self,label,fpath,dici):
+        if  is_lm(label)==True:
+            dici['label_info'] = self.get_label_info([fpath])
+        return dici
+
 
     def get_label_info(self,mask_fnames):
         labels=[]
@@ -313,6 +330,22 @@ class Proj(_BaseObj):
                     print("File {} exists. Skipping".format(outfname))
 
 
+    @property
+    def keywords(self):
+        c, _ = login()
+        const = [
+            ('xnat:projectData/name','=',self.name)
+        ]
+        aa=    c.select('xnat:projectData',
+                 [
+                # 'xnat:projectData/name',
+                 'xnat:projectData/keywords'
+                 ]
+                        ).where(const)
+        kw = aa[0]['keywords']
+        return kw
+
+
         
 
 
@@ -333,7 +366,6 @@ class Subj(GetAttr):
         return Exp(self.get_pt_id(), exp)
 
     def download_rscs(self,labels,dest_folder):
-        tr()
         labels =listify(labels)
         for label in labels:
             rscs = [rsc for rsc in  self.rscs if rsc.label() == label]
@@ -569,7 +601,17 @@ def get_matching_rsc(fpath,target_label="IMAGE"):
 # %%
 if __name__ == "__main__":
         
-    proj_title = 'lidc_unable_to_delete'
+    proj_title = 'lidc2'
+
+    proj = Proj(proj_title)
+    proj.create_report()
+# %%
+    subs = proj.subs
+    sub =subs[0]
+    sub= Subj(sub)
+    rscs = sub.rscs
+    rsc = rscs[0]
+# %%
     proj = central.select.project(proj_title)
     proj.exists()
     proj = Proj(proj_title)

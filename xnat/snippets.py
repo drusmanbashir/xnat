@@ -14,10 +14,10 @@ from fran.utils.fileio import maybe_makedirs
 
 # %%
 if __name__ == "__main__":
-    proj_title='lidc2'
+    proj_title='nodes'
     proj = Proj(proj_title)
-    df= proj.create_report(mask_label="LM_GT",img_label ="IMAGE", search_level= "exps",add_label_info=True)
-    proj.export_nii(symlink=True,overwrite=True,ensure_fg=True)
+    df= proj.create_report()
+    proj.export_nii(symlink=True,overwrite=True,ensure_fg=True,label=label)
     subs = proj.subjects()
 
     csv_fn = "/tmp/img_mask_fpaths.csv"
@@ -37,15 +37,15 @@ if __name__ == "__main__":
 # %%
 # %%
 
-    fldr = Path("/s/xnat_shadow/lidctmp")
+    fldr = Path("/s/xnat_shadow/nodes")
     fldr1 = fldr/("images")
     fldr2 = fldr/("masks")
     maybe_makedirs([fldr1,fldr2])
 # %%
-    for sub in subs[:5]:
+    for sub in subs:
         sub = Subj(sub)
         sub.download_rscs("IMAGE",fldr1)
-        sub.download_rscs("LM_GT",fldr2)
+        # sub.download_rscs("LM_GT",fldr2)
 # %%
     collate_nii_foldertree(fldr2,fldr2)
     collate_nii_foldertree(fldr1,fldr1)
@@ -90,10 +90,7 @@ if __name__ == "__main__":
     df.to_csv("/s/xnat_shadow/crc/dcm_summary.csv",index=False)
 # %%
 
-    def factorial(n):
-        if n == 0:
-
-            
+           
 
 
 
@@ -115,9 +112,6 @@ if __name__ == "__main__":
 # %% [markdown]
 ## Fix masks
         
-
-
-
 
 
 # %%
@@ -269,6 +263,8 @@ if __name__ == "__main__":
     c,_ = login()
 
     c.inspect.datatypes('xnat:projectData')
+    c.inspect.datatypes('xnat:experimentData')
+    c.inspect.datatypes('xnat:ctSessionData')
 
 # %%
     constraints = [
@@ -289,9 +285,25 @@ if __name__ == "__main__":
              ]
                     ).where(constraints)
 # %%
-    aa =c.select('xnat:subjectData',
+    const = [
+        ('xnat:projectData/name','=','lidc2')
+    ]
+    aa=    c.select('xnat:projectData',
+             [
+            # 'xnat:projectData/name',
+             'xnat:projectData/keywords'
+             ]
+                    ).where(const)
+
+    print(aa.as_list())
+
+    print(aa.data[0]['keywords'])
+
+# %%
+    aa =c.select('xnat:ctSessionData',
 
                ['xnat:subjectData/SUBJECT_ID',
+                
 
                 'xnat:subjectData/AGE']
 
