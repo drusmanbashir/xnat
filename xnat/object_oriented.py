@@ -1,5 +1,6 @@
 # %%
-
+from dicom_utils.metadata import *
+import pyxnat
 import itertools as il
 import os
 import re
@@ -15,6 +16,7 @@ from fastcore.basics import listify, store_attr
 from label_analysis.helpers import get_labels
 from pydicom import dcmread
 
+from dicom_utils.drli_helper import dcm_segmentation
 from fran.utils.imageviewers import ImageMaskViewer, view_sitk
 from fran.utils.string import cleanup_fname, info_from_filename
 
@@ -237,6 +239,45 @@ class Proj(_BaseObj):
     #     self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
     #     return df
     #
+    def collate_metadata(self):
+        cols = 'case_id','filename', 'date', 'vendor','model','kernel','filter_type','kvp','current' , 'exposure','ctdi','thickness'
+        tag_list =vendor,model ,kernel,filter_type,kvp,current, exposure,ctdi,thickness
+        all_exps=[]
+        subs = list(self.subs)
+        for i in pbar(range(len(subs))):
+            sub= subs[i]
+            sub = Subj(sub)
+            case_id = sub.get_pt_id()
+            for j in range(len(sub.exps)):
+                dat = []
+                exp= sub.exps[j]
+                date=exp.date
+                x=exp.x
+                fn= x.get_uri('IMAGE')
+                fn= fn.name
+                dcm_fns = x.get_uri("DICOM")
+                hdr = dcmread(dcm_fns[0])
+                vals= [case_id,fn , date]
+                for tg in tag_list:
+                    try:
+                        val = hdr[tg].value 
+                    except:
+                        val= None
+                    vals.append(val)
+                dat+= vals
+                all_exps.append(dat)
+
+        df = pd.DataFrame(data=all_exps,columns = cols)
+        rsc_name = "dcm_metadata"
+        self.df_rsc(df,rsc_name)
+
+# %%
+
+    def df_rsc(self,df,rsc_name):
+        csv_fn = Path("/tmp/{}.csv".format(rsc_name))
+        df.to_csv(csv_fn,index=False)
+        self.add_rsc(csv_fn,label=rsc_name,content="CSV",format="CSV",force=True)
+
     def create_report(self, add_label_info=True) -> pd.DataFrame:
         '''
         add_label_info: add label info to the report. Slows it down
@@ -253,7 +294,7 @@ class Proj(_BaseObj):
         df =[]
         for sub in pbar(self.subs):
                 sub = Subj(sub)
-                case_id = sub.get_pt_id()
+                dici = sub.get_info()
                 ses = getattr(sub,search_level)
                 for se in ses:
                     xm = se.x
@@ -261,15 +302,16 @@ class Proj(_BaseObj):
                     for f in fs:
                         label = f['label']
                         if label not in excluded_labels :
-                            fpath = proj._fpath_from_catalog(f)
-                            dici = {'case_id':case_id,'label':label,'fpath':fpath}
+                            fpath = self._fpath_from_catalog(f)
+                            dici2 = {'label':label,'fpath':fpath}
                             if add_label_info==True:
-                                dici = self.maybe_add_labels(label,fpath,dici)
-                            df.append(dici)
+                                dici2 = self.maybe_add_labels(label,fpath,dici2)
+                            dici_final = dici|dici2
+                            df.append(dici_final)
         df = pd.DataFrame(df)
-        csv_fn = Path("/tmp/rsc_fpaths.csv")
-        df.to_csv(csv_fn,index=False)
-        self.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
+
+        rsc_name = "Resources"
+        self.df_rsc(df,rsc_name)
         return df
 
     def maybe_add_labels(self,label,fpath,dici):
@@ -297,6 +339,13 @@ class Proj(_BaseObj):
                         entry = cat_mx.find_all("cat:entry")[0]
                         fpath = fldr/entry['URI']
                         return fpath
+
+
+    def dcm2nii(self,add_date,add_desc,overwrite):
+        for i,sub in enumerate(self.subs):
+            sub = Subj(sub)
+            for scn in sub.scans:
+                scn.dcm2nii(add_date=add_date,add_desc=add_desc,overwrite=overwrite)
 
 
     def export_nii(self,symlink=True,overwrite=False,ensure_fg=True):
@@ -342,8 +391,11 @@ class Proj(_BaseObj):
                  'xnat:projectData/keywords'
                  ]
                         ).where(const)
-        kw = aa[0]['keywords']
-        return kw
+        try:
+            kw = aa[0]['keywords']
+            return kw
+        except:
+            return ''
 
 
         
@@ -353,7 +405,7 @@ class Proj(_BaseObj):
 class Subj(GetAttr):
     _default= 'scn'
     def __init__(self,scn:Subject):
-        assert isinstance(scn,Subject),"Initialize with a Subject instance please"
+        assert isinstance(scn,Union[pyxnat.core.resources.Subject,Subject]),"Initialize with a Subject instance please"
         store_attr() 
         self.exp_ids = self.scn.experiments().get()
         self.get_rscs()
@@ -371,6 +423,18 @@ class Subj(GetAttr):
             rscs = [rsc for rsc in  self.rscs if rsc.label() == label]
             for rsc in rscs:
                 rsc.get(dest_folder,extract=True)
+
+
+    @property
+    def test(self):
+        test = self.attrs.get("ethnicity")
+
+    @test.setter
+    def test(self,value):
+        assert value in ["test","train"], "Must be 'test' or 'train'"
+        self.attrs.set('ethnicity',value)
+
+
 
     @property
     def exps(self):
@@ -393,10 +457,34 @@ class Subj(GetAttr):
         self.rscs = list(il.chain.from_iterable(r))
 
 
+    def get_info(self):
+        c,_ = login()
+        subject_id = self.id()
+        pt_id = self.get_pt_id()
+        columns = ['xnat:subjectData/PROJECT',
+                   'xnat:subjectData/SUBJECT_ID',
+                   'xnat:subjectData/INSERT_DATE',
+                   'xnat:subjectData/GENDER_TEXT',
+                   'xnat:subjectData/ETHNICITY',]
+
+        dt = 'xnat:subjectData'
+        data = c.select(dt, columns=columns).all().data
+        c._subjectData = data
+        data = [e for e in data if e['subject_id'] == subject_id][0]
+        data["case_id"] =pt_id
+        self._info = data
+        return self._info
+
+
+
     @property
-    def project(self):
+    def project(self, use_alias=True):
+        # use_alias allows me to use alias when project title does not conform with naming convention i use in my projects.
         project = self.scn.shares()[0]
-        return project.label()
+        if use_alias==True and len(project.aliases())>0:
+            return project.aliases()[0]
+        else:
+            return project.label()
 
     def get_pt_id(self,append_proj=True):
         pt_id = self.scn.label()
@@ -423,13 +511,30 @@ class Rsc(GetAttr):
             return repr
 
 
-
+def resolve_scan_object(datatype):
+            if datatype == "xnat:segScanData":
+                scnobj = ScnSeg
+            elif datatype== 'xnat:ctScanData':
+                scnobj = Scn
+            else:
+                tr()
+            return scnobj
+            
+            
 class Exp(_ExpScn):
     def __init__(self,pt_id, esp:Experiment):
         assert isinstance(esp,Experiment),"Initialize with a Experiment instance please"
         super().__init__(pt_id,esp)
         self.x = ExpXML(self.get())
-        self.scans = [Scn(pt_id,scn ) for scn in self.esp.scans()]
+        scns = self.esp.scans()
+        self.scans=[]
+        for scn in scns:
+            scnobj = resolve_scan_object(scn.datatype())
+            scan = scnobj(pt_id,scn)
+            self.scans.append(
+                scan
+
+            )
 
     @property
     def date(self):
@@ -442,20 +547,20 @@ class Scn(_ExpScn):
         super().__init__(pt_id,esp)
         self.x = ScnXML(self.get())
         self.filesets = self.x.filesets
+        self.datatype="DICOM"
 
     def parent(self): return Exp(self.pt_id,self.esp.parent())
 
-    def get_filesetXML(self,label:str):
+    def get_filesetXML(self):
         try:
-            assert self.has_rsc(label),"Resource {0} does not exist. No fileset to get".format(label)
-            fs= [f for f in self.filesets if f.label == label][0]
+            assert self.has_rsc(self.datatype),"Resource {0} does not exist. No fileset to get".format(self.datatype)
+            fs= [f for f in self.filesets if f.label == self.datatype][0]
             return fs
         except AssertionError as msg:
             print(msg)
 
-
-    def get_rsc_fpaths(self,label:str):
-        fs = self.get_filesetXML(label)
+    def get_rsc_fpaths(self):
+        fs = self.get_filesetXML()
         return fs.get_fpaths()
 
     def nii_postprocess(self,rsc_label:str,output_label:str,fnc,*fncargs:None):
@@ -482,32 +587,37 @@ class Scn(_ExpScn):
             print(e)
 
             
-    def dcm2nii(self,label="IMAGE", desc_in_fname=True, overwrite=False):
-
+    def dcm2nii(self,label="IMAGE", add_date=True, add_desc=True, overwrite=False):
         if not self.has_rsc(label) or overwrite==True:
             dcm_fn1= self.dcm_fns[0]
-            fldr = Path(dcm_fn1).parent
-            nii_fname = self.generate_nii_fname(dcm_fn1,desc_in_fname)
-            reader = sitk.ImageSeriesReader()
-            dcm_names = reader.GetGDCMSeriesFileNames(str(fldr))
-            reader.SetFileNames(dcm_names)
-            img = reader.Execute()
+            nii_fname = self.generate_nii_fname(dcm_fn1,add_date, add_desc)
             tmp_nm= Path("/home/ub/.tmp/{0}".format(nii_fname))
+            img = self._sitk_convert(dcm_fn1)
             sitk.WriteImage(img,tmp_nm)
             self.add_rsc(fpath = tmp_nm, label=label)
         else:
             print("Case id {0}, Desc: {1}. However, resource labelled {2} already exists. Nothing to do.".format(self.pt_id,self.desc,label))
 
-    def generate_nii_fname(self,dcm_file, desc_in_fname=True):
-        date = self.date
-        hdr = dcmread(dcm_file)
-        desc = hdr.SeriesDescription
-        desc = readable_text(desc)
-        if desc not in self.pt_id and desc_in_fname==True:  
-            fname = "_".join([self.pt_id,date,desc])+".nii.gz"
-        else:
-            fname = "_".join([self.pt_id,date])+".nii.gz"
+    def _sitk_convert(self,dcm_fn):
+            reader = sitk.ImageSeriesReader()
+            fldr = Path(dcm_fn).parent
+            dcm_names = reader.GetGDCMSeriesFileNames(str(fldr))
+            reader.SetFileNames(dcm_names)
+            img = reader.Execute()
+            return img
 
+
+    def generate_nii_fname(self,dcm_file, date= True,desc=True):
+        fname = self.pt_id
+        if date==True:
+            date = self.date
+            fname+="_"+date
+        if desc==True:
+            hdr = dcmread(dcm_file)
+            desc = hdr.SeriesDescription
+            desc = readable_text(desc)
+            fname+="_"+desc
+        fname+=".nii.gz"
         return fname
 
     @property
@@ -521,9 +631,20 @@ class Scn(_ExpScn):
 
     @property
     def dcm_fns(self):
-            dcm_fs= self.get_filesetXML('DICOM')
+            dcm_fs= self.get_filesetXML()
             self._dcm_fns  =dcm_fs.get_fpaths()
             return self._dcm_fns
+
+
+class ScnSeg(Scn):
+    def __init__(self, pt_id, esp: Scan) -> None:
+        super().__init__(pt_id, esp)
+        self.datatype="secondary"
+    def dcm2nii(self, label="LABELMAP", add_date=True, add_desc=True, overwrite=False):
+        return super().dcm2nii(label=label, add_date=add_date,add_desc=add_desc,overwrite= overwrite)
+
+    def _sitk_convert(self,dcm_fn):
+            return dcm_segmentation(dcm_fn)
 
 
  
@@ -699,5 +820,5 @@ if __name__ == "__main__":
     case_id = "_".join(parts[:2])
     outputs=[proj_title,case_id]
 
-    out = info_from_filename(fname)
     
+    out = info_from_filename(fname)

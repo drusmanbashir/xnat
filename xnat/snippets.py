@@ -6,7 +6,7 @@ from tqdm import tqdm
 from xnat.object_oriented import *
 from dicom_utils.capestart_related import collate_nii_foldertree
 
-from fran.utils.string import  int_to_str
+from dicom_utils.helpers import dcm_segmentation
 from label_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
 from xnat.object_oriented import *
 from fran.utils.fileio import maybe_makedirs
@@ -14,18 +14,20 @@ from fran.utils.fileio import maybe_makedirs
 
 # %%
 if __name__ == "__main__":
-    proj_title='nodes'
+    proj_title='tcia_nodes'
     proj = Proj(proj_title)
-    df= proj.create_report()
-    proj.export_nii(symlink=True,overwrite=True,ensure_fg=True,label=label)
+    proj.collate_metadata()
+# %%
+    proj.dcm2nii(add_date=False,add_desc=False,overwrite=False)
+    # df= proj.create_report()
+    # proj.export_nii(symlink=True,overwrite=True,ensure_fg=True,label=label)
+# %%
     subs = proj.subjects()
-
     csv_fn = "/tmp/img_mask_fpaths.csv"
 
     df = pd.read_csv(csv_fn)
     df.dropna(inplace=True)
-    fldrs = proj.export_folder/"images", proj.export_folder/"masks"
-    [maybe_makedirs(f) for f in fldrs]
+    fldrs = proj.export_folder/"images", proj.export_folder/"masks"+    [maybe_makedirs(f) for f in fldrs]
     filesets=  df.img_fpaths, df.mask_fpaths
 
 # %%
@@ -37,18 +39,38 @@ if __name__ == "__main__":
 # %%
 # %%
 
-    fldr = Path("/s/xnat_shadow/nodes")
+    fldr = Path("/s/xnat_shadow/crc/images_more/")
     fldr1 = fldr/("images")
     fldr2 = fldr/("masks")
     maybe_makedirs([fldr1,fldr2])
 # %%
+    ids_list =["crc_CRC"+str(num) for num in range(375,400)]
     for sub in subs:
         sub = Subj(sub)
-        sub.download_rscs("IMAGE",fldr1)
+        id_ = sub.get_pt_id()
+        print(id_)
+        if id_ in ids_list:
+            print("Downloading")
+            sub.download_rscs("IMAGE",fldr1)
         # sub.download_rscs("LM_GT",fldr2)
 # %%
     collate_nii_foldertree(fldr2,fldr2)
     collate_nii_foldertree(fldr1,fldr1)
+
+
+
+    src_fldr = Path("/s/xnat_shadow/tcianodes/")
+    ni = list(src_fldr.rglob("*"))
+    img_fns = [fn for fn in ni if "IMAGE" in str(fn) and ".nii.gz" in fn.name]
+    lm_fns = [fn for fn in ni if "LABELMAP" in str(fn) and ".nii.gz" in fn.name]
+# %%
+    dest_fldr = src_fldr/("lms")
+    for fn in lm_fns:
+            fn_neo =dest_fldr/fn.name
+            print("{0}   ---->   {1}".format(fn,fn_neo))
+            shutil.move(fn,fn_neo)
+
+
 # %%
     # if any(r.label()=='LABEL_GT' for r in rscs):
     #     sub.download_rscs("LABEL_GT","/s/xnat_shadow/crc/test/labels/")
@@ -62,8 +84,10 @@ if __name__ == "__main__":
     tag_list =vendor,model ,kernel,filter_type,kvp,current,exposure_time, exposure,ctdi,thickness
 # %%
     all_exps=[]
+    subs = list(subs)
     for i in tqdm(range(len(subs))):
         sub= subs[i]
+        sub = Subj(sub)
         case_id = sub.get_pt_id()
         for j in range(len(sub.exps)):
             dat = []
@@ -138,7 +162,7 @@ if __name__ == "__main__":
 # %% [markdown]
 ## Download all nifti masks and images
 # %% 
-    df = proj.create_report("MASK_THICK")
+    df = proj.create_report()
     proj.export_nii(symlink=False,overwrite=True)
     for i in range(len(df)):
         row = df.iloc[i]
@@ -151,8 +175,8 @@ if __name__ == "__main__":
 # %% [markdown]
 ## Delete unwanted subjects
     bad_ids = [61,63,64,65,66,67,68,'n14','n15','n16','nn1']
-    for id in bad_ids:
-        sub = proj.subject(str(id))
+    for id_ in bad_ids:
+        sub = proj.subject(str(id_))
         print(sub)
         sub.delete()
         
@@ -166,12 +190,41 @@ if __name__ == "__main__":
     keep_desc = True
 # %%
     proj = Proj(proj_title)
+    proj.dcm2nii()
     subs = proj.subs
+    scn = sub.scans[0]
+    scn.get_filesetXML()
+    scn.dcm_fns
+
+    if scn.datatype()=="xnat:segScanData":
+        sc = ScnSeg(scn)
+
+# %%
+        add_date= False
+        add_desc= False
+        dcm_fn1= scn.dcm_fns[0]
+        fldr = Path(dcm_fn1).parent
+        nii_fname = scn.generate_nii_fname(dcm_fn1,add_date, add_desc)
+
+
+        img= dcm_segmentation(dcm_fn1)
+
+
+
+        reader = sitk.ImageSeriesReader()
+        dcm_names = reader.GetGDCMSeriesFileNames(str(fldr))
+        reader.SetFileNames(dcm_names)
+        img = reader.Execute()
+        tmp_nm= Path("/home/ub/.tmp/{0}".format(nii_fname))
+        sitk.WriteImage(img,tmp_nm)
+        scn.add_rsc(fpath = tmp_nm, label=label)
+
 # %%
     j=0
-    for i in range(j,len(subs)):
-        ss = subs[i]
-        for scn in ss.scans:
+    keep_desc=True
+    for i,sub in enumerate(subs):
+        sub = Subj(sub)
+        for scn in sub.scans:
             scn.dcm2nii(desc_in_fname=keep_desc)
 
         print(i)
@@ -260,52 +313,4 @@ if __name__ == "__main__":
 # %% [markdown]
 ## Filter resources
 # %%
-    c,_ = login()
 
-    c.inspect.datatypes('xnat:projectData')
-    c.inspect.datatypes('xnat:experimentData')
-    c.inspect.datatypes('xnat:ctSessionData')
-
-# %%
-    constraints = [
-                  ('xnat:subjectData/PROJECT', '=', 'nodes'),
-                   'OR',
-
-                   [('xnat:subjectData/AGE','>','14'),
-
-                    'AND'
-
-                    ]
-
-                   ]
-# %%
-    aa=    c.select('xnat:subjectData',
-             [
-             'xnat:subjectData/SUBJECT_ID'
-             ]
-                    ).where(constraints)
-# %%
-    const = [
-        ('xnat:projectData/name','=','lidc2')
-    ]
-    aa=    c.select('xnat:projectData',
-             [
-            # 'xnat:projectData/name',
-             'xnat:projectData/keywords'
-             ]
-                    ).where(const)
-
-    print(aa.as_list())
-
-    print(aa.data[0]['keywords'])
-
-# %%
-    aa =c.select('xnat:ctSessionData',
-
-               ['xnat:subjectData/SUBJECT_ID',
-                
-
-                'xnat:subjectData/AGE']
-
-        ).where(constraints)
-# %%

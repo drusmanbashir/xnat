@@ -25,8 +25,8 @@ class LIDCProcessor():
         self.proj = Proj("lidc2")
         self.scans = pl.query(pl.Scan).filter()
         print(self.scans.count())
-        self.imgs_fldr = Path("/home/ub/tmp/images")
-        self.lm_fldr = Path("/home/ub/tmp/masks")
+        self.imgs_fldr = Path("/s/tmp/images")
+        self.lm_fldr = Path("/s/tmp/masks")
 
     def process_scan(self,scan,clevel=.35):
         case_id = self.get_case_id(scan)
@@ -119,7 +119,7 @@ class LIDCProcessor():
 # %%
 if __name__ == "__main__":
     L = LIDCProcessor()
-    for indx in range(200):
+    for indx in range(250,350):
         scn = L.scans[indx]
 
         L.process_scan(scn)
