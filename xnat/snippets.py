@@ -14,7 +14,7 @@ from fran.utils.fileio import maybe_makedirs
 
 # %%
 if __name__ == "__main__":
-    proj_title='tcia_nodes'
+    proj_title='tcianodes'
     proj = Proj(proj_title)
     proj.collate_metadata()
 # %%
