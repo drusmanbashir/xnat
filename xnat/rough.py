@@ -1,5 +1,6 @@
 # %%
 import os
+
 import pandas as pd
 from pydicom.filereader import read_dicomdir
 import itertools as il
