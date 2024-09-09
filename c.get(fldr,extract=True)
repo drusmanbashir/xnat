@@ -1,0 +1,104 @@
+[0;31mSignature:[0m [0mrsc[0m[0;34m.[0m[0mget[0m[0;34m([0m[0mdest_dir[0m[0;34m,[0m [0mextract[0m[0;34m=[0m[0;32mFalse[0m[0;34m)[0m[0;34m[0m[0;34m[0m[0m
+[0;31mSource:[0m   
+    [0;32mdef[0m [0mget[0m[0;34m([0m[0mself[0m[0;34m,[0m [0mdest_dir[0m[0;34m,[0m [0mextract[0m[0;34m=[0m[0;32mFalse[0m[0;34m)[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m        [0;34m""" Downloads all the files within a resource.[0m
+[0;34m[0m
+[0;34m            ..warning::[0m
+[0;34m                Currently XNAT adds parent folders in the zip file that[0m
+[0;34m                is downloaded to avoid name clashes if several resources[0m
+[0;34m                are downloaded in the same folder. In order to be able to[0m
+[0;34m                download the data uploaded previously with the same[0m
+[0;34m                structure, pyxnat extracts the zip file, removes the extra[0m
+[0;34m                paths and if necessary re-zips it. Careful, it may take[0m
+[0;34m                time, and there is the problem of name clashes.[0m
+[0;34m[0m
+[0;34m            Parameters[0m
+[0;34m            ----------[0m
+[0;34m            dest_dir: string[0m
+[0;34m                Destination directory for the resource data.[0m
+[0;34m                if dest_dir is None, then the user's Downloads directory is[0m
+[0;34m                used as the default download location.[0m
+[0;34m            extract: boolean[0m
+[0;34m                If True, the downloaded zip file is extracted.[0m
+[0;34m                If False, not extracted.[0m
+[0;34m[0m
+[0;34m            Returns[0m
+[0;34m            -------[0m
+[0;34m            If extract is False, the zip file path.[0m
+[0;34m            If extract is True, the list of file paths previously in[0m
+[0;34m            the zip.[0m
+[0;34m        """[0m[0;34m[0m
+[0;34m[0m        [0mzip_location[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0mdest_dir[0m[0;34m,[0m [0muri_last[0m[0;34m([0m[0mself[0m[0;34m.[0m[0m_uri[0m[0;34m)[0m [0;34m+[0m [0;34m'.zip'[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0;32mwith[0m [0mopen[0m[0;34m([0m[0mzip_location[0m[0;34m,[0m [0;34m'wb'[0m[0;34m)[0m [0;32mas[0m [0mf[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m            [0mresponse[0m [0;34m=[0m [0mself[0m[0;34m.[0m[0m_intf[0m[0;34m.[0m[0mget[0m[0;34m([0m[0mjoin_uri[0m[0;34m([0m[0mself[0m[0;34m.[0m[0m_uri[0m[0;34m,[0m [0;34m'files'[0m[0;34m)[0m [0;34m+[0m[0;34m[0m
+[0;34m[0m                                      [0;34m'?format=zip'[0m[0;34m,[0m [0mstream[0m[0;34m=[0m[0;32mTrue[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0;32mtry[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0mcount[0m [0;34m=[0m [0;36m0[0m[0;34m[0m
+[0;34m[0m                [0;32mfor[0m [0mchunk[0m [0;32min[0m [0mresponse[0m[0;34m.[0m[0miter_content[0m[0;34m([0m[0mchunk_size[0m[0;34m=[0m[0;36m1024[0m[0;34m)[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                    [0;32mif[0m [0mchunk[0m[0;34m:[0m  [0;31m# filter out keep-alive new chunks[0m[0;34m[0m
+[0;34m[0m                        [0mf[0m[0;34m.[0m[0mwrite[0m[0;34m([0m[0mchunk[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m                        [0mcount[0m [0;34m+=[0m [0;36m1[0m[0;34m[0m
+[0;34m[0m                        [0;32mif[0m [0mcount[0m [0;34m%[0m [0;36m10[0m [0;34m==[0m [0;36m0[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                            [0;31m# flush the buffer every once in a while.[0m[0;34m[0m
+[0;34m[0m                            [0mf[0m[0;34m.[0m[0mflush[0m[0;34m([0m[0;34m)[0m[0;34m[0m
+[0;34m[0m                [0mf[0m[0;34m.[0m[0mflush[0m[0;34m([0m[0;34m)[0m  [0;31m# and one last flush.[0m[0;34m[0m
+[0;34m[0m            [0;32mexcept[0m [0mException[0m [0;32mas[0m [0me[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0msys[0m[0;34m.[0m[0mstderr[0m[0;34m.[0m[0mwrite[0m[0;34m([0m[0me[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0;32mfinally[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0mresponse[0m[0;34m.[0m[0mclose[0m[0;34m([0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0;32mif[0m [0mDEBUG[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m            [0mprint[0m[0;34m([0m[0mzip_location[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0mfzip[0m [0;34m=[0m [0mzipfile[0m[0;34m.[0m[0mZipFile[0m[0;34m([0m[0mzip_location[0m[0;34m,[0m [0;34m'r'[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m        [0mfzip[0m[0;34m.[0m[0mextractall[0m[0;34m([0m[0mpath[0m[0;34m=[0m[0mdest_dir[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m        [0mfzip[0m[0;34m.[0m[0mclose[0m[0;34m([0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0mmembers[0m [0;34m=[0m [0;34m[[0m[0;34m][0m[0;34m[0m
+[0;34m[0m        [0mfzip_namelist[0m [0;34m=[0m [0;34m[[0m[0mstr[0m[0;34m([0m[0mPath[0m[0;34m([0m[0mitem[0m[0;34m)[0m[0;34m)[0m [0;32mfor[0m [0mitem[0m [0;32min[0m [0mfzip[0m[0;34m.[0m[0mnamelist[0m[0;34m([0m[0;34m)[0m[0;34m][0m[0;34m[0m
+[0;34m[0m        [0;32mfor[0m [0mmember[0m [0;32min[0m [0mfzip_namelist[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m            [0mold_path[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0mdest_dir[0m[0;34m,[0m [0mmember[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0;32mif[0m [0mDEBUG[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0mprint[0m[0;34m([0m[0mmember[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m                [0mprint[0m[0;34m([0m[0mmember[0m[0;34m.[0m[0msplit[0m[0;34m([0m[0;34m'files'[0m[0;34m,[0m [0;36m1[0m[0;34m)[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0mnew_path[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0;34m[0m
+[0;34m[0m                [0mdest_dir[0m[0;34m,[0m[0;34m[0m
+[0;34m[0m                [0muri_last[0m[0;34m([0m[0mself[0m[0;34m.[0m[0m_uri[0m[0;34m)[0m[0;34m,[0m[0;34m[0m
+[0;34m[0m                [0mmember[0m[0;34m.[0m[0msplit[0m[0;34m([0m[0;34m'files'[0m[0;34m,[0m [0;36m1[0m[0;34m)[0m[0;34m[[0m[0;36m1[0m[0;34m][0m[0;34m.[0m[0msplit[0m[0;34m([0m[0mos[0m[0;34m.[0m[0msep[0m[0;34m,[0m [0;36m1[0m[0;34m)[0m[0;34m[[0m[0;36m1[0m[0;34m][0m[0;34m[0m
+[0;34m[0m                [0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m            [0;32mif[0m [0;32mnot[0m [0mop[0m[0;34m.[0m[0mexists[0m[0;34m([0m[0mop[0m[0;34m.[0m[0mdirname[0m[0;34m([0m[0mnew_path[0m[0;34m)[0m[0;34m)[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0mos[0m[0;34m.[0m[0mmakedirs[0m[0;34m([0m[0mop[0m[0;34m.[0m[0mdirname[0m[0;34m([0m[0mnew_path[0m[0;34m)[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m            [0mshutil[0m[0;34m.[0m[0mmove[0m[0;34m([0m[0mold_path[0m[0;34m,[0m [0mnew_path[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m            [0mmembers[0m[0;34m.[0m[0mappend[0m[0;34m([0m[0mnew_path[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0;31m# TODO: cache.delete(...)[0m[0;34m[0m
+[0;34m[0m        [0;32mfor[0m [0mextracted[0m [0;32min[0m [0mfzip_namelist[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m            [0mpth[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0mdest_dir[0m[0;34m,[0m [0mextracted[0m[0;34m.[0m[0msplit[0m[0;34m([0m[0mos[0m[0;34m.[0m[0msep[0m[0;34m,[0m [0;36m1[0m[0;34m)[0m[0;34m[[0m[0;36m0[0m[0;34m][0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m            [0;32mif[0m [0mop[0m[0;34m.[0m[0misdir[0m[0;34m([0m[0mpth[0m[0;34m)[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0mshutil[0m[0;34m.[0m[0mrmtree[0m[0;34m([0m[0mpth[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0mos[0m[0;34m.[0m[0mremove[0m[0;34m([0m[0mzip_location[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0;32mif[0m [0;32mnot[0m [0mextract[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m            [0mfzip[0m [0;34m=[0m [0mzipfile[0m[0;34m.[0m[0mZipFile[0m[0;34m([0m[0mzip_location[0m[0;34m,[0m [0;34m'w'[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0marcprefix[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mcommonprefix[0m[0;34m([0m[0mmembers[0m[0;34m)[0m[0;34m.[0m[0mrpartition[0m[0;34m([0m[0mos[0m[0;34m.[0m[0msep[0m[0;34m)[0m[0;34m[[0m[0;36m0[0m[0;34m][0m[0;34m[0m
+[0;34m[0m            [0marcroot[0m [0;34m=[0m [0;34m'/%s'[0m [0;34m%[0m [0mop[0m[0;34m.[0m[0msplit[0m[0;34m([0m[0marcprefix[0m[0;34m.[0m[0mrstrip[0m[0;34m([0m[0mos[0m[0;34m.[0m[0msep[0m[0;34m)[0m[0;34m)[0m[0;34m[[0m[0;36m1[0m[0;34m][0m[0;34m[0m
+[0;34m[0m            [0;32mfor[0m [0mmember[0m [0;32min[0m [0mmembers[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0mopj[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0marcroot[0m[0;34m,[0m [0mmember[0m[0;34m.[0m[0msplit[0m[0;34m([0m[0marcprefix[0m[0;34m)[0m[0;34m[[0m[0;36m1[0m[0;34m][0m[0;34m)[0m[0;34m[0m
+[0;34m[0m                [0mfzip[0m[0;34m.[0m[0mwrite[0m[0;34m([0m[0mmember[0m[0;34m,[0m [0mopj[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0mfzip[0m[0;34m.[0m[0mclose[0m[0;34m([0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0munzippedTree[0m [0;34m=[0m [0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0mdest_dir[0m[0;34m,[0m [0muri_last[0m[0;34m([0m[0mself[0m[0;34m.[0m[0m_uri[0m[0;34m)[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m            [0;32mif[0m [0mop[0m[0;34m.[0m[0mexists[0m[0;34m([0m[0munzippedTree[0m[0;34m)[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                [0;32mif[0m [0mop[0m[0;34m.[0m[0misdir[0m[0;34m([0m[0munzippedTree[0m[0;34m)[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                    [0mshutil[0m[0;34m.[0m[0mrmtree[0m[0;34m([0m[0mop[0m[0;34m.[0m[0mjoin[0m[0;34m([0m[0mdest_dir[0m[0;34m,[0m [0muri_last[0m[0;34m([0m[0mself[0m[0;34m.[0m[0m_uri[0m[0;34m)[0m[0;34m)[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m                [0;32melse[0m[0;34m:[0m[0;34m[0m
+[0;34m[0m                    [0mos[0m[0;34m.[0m[0mremove[0m[0;34m([0m[0munzippedTree[0m[0;34m)[0m[0;34m[0m
+[0;34m[0m[0;34m[0m
+[0;34m[0m        [0;32mreturn[0m [0mzip_location[0m [0;32mif[0m [0mop[0m[0;34m.[0m[0mexists[0m[0;34m([0m[0mzip_location[0m[0;34m)[0m [0;32melse[0m [0mmembers[0m[0;34m[0m[0;34m[0m[0m
+[0;31mFile:[0m      ~/mambaforge/envs/dl/lib/python3.11/site-packages/pyxnat/core/resources.py
+[0;31mType:[0m      method

@@ -37,7 +37,7 @@ from fran.utils.fileio import (load_file, load_xml, load_yaml, maybe_makedirs,
 from fran.utils.helpers import get_pbar, pat_nodesc
 
 pbar= get_pbar()
-
+XNAT_TMP_FLDR="/s/tmp/xnat"
 
 from contextlib import closing
 
@@ -58,7 +58,6 @@ class _XMLObj(GetAttr):
     _default = 'src'
 
     def __init__(self,src):
-
         if not isinstance(src,Union[BS,Tag]): src = BS(src,features="xml")
         store_attr()
 
@@ -129,7 +128,7 @@ class FilesetXML(_XMLObj):
 class ScnXML(_XMLObj):
     def __init__(self, src):
         super().__init__(src)
-        self.filesets= [FilesetXML(x) for x in self.find_all(['xnat:file'])]
+        # self.filesets= [FilesetXML(x) for x in self.find_all(['xnat:file'])]
 
     def __repr__(self) -> str:
         return super().__repr__()
@@ -159,7 +158,7 @@ class _BaseObj(GetAttr):
             if len(tags)>0:
                 for tg in tags:
                     rsc_neo.tag(tg)
-            rsc_neo.file(fname).put(fpath,
+            rsc_neo.file(fname).insert(fpath,
                                     content= content,
                                     format=format)
             # rsc_neo.create()
@@ -271,7 +270,6 @@ class Proj(_BaseObj):
         rsc_name = "dcm_metadata"
         self.df_rsc(df,rsc_name)
 
-# %%
 
     def df_rsc(self,df,rsc_name):
         csv_fn = Path("/tmp/{}.csv".format(rsc_name))
@@ -512,9 +510,10 @@ class Rsc(GetAttr):
 
 
 def resolve_scan_object(datatype):
+            modalities = 'xnat:ctScanData', 'xnat:mrScanData'
             if datatype == "xnat:segScanData":
                 scnobj = ScnSeg
-            elif datatype== 'xnat:ctScanData':
+            elif datatype in modalities:
                 scnobj = Scn
             else:
                 tr()
@@ -546,22 +545,10 @@ class Scn(_ExpScn):
         assert isinstance(esp,Scan),"Initialize with a Scan instance please"
         super().__init__(pt_id,esp)
         self.x = ScnXML(self.get())
-        self.filesets = self.x.filesets
-        self.datatype="DICOM"
+        self.datatype=["DICOM"]
 
     def parent(self): return Exp(self.pt_id,self.esp.parent())
 
-    def get_filesetXML(self):
-        try:
-            assert self.has_rsc(self.datatype),"Resource {0} does not exist. No fileset to get".format(self.datatype)
-            fs= [f for f in self.filesets if f.label == self.datatype][0]
-            return fs
-        except AssertionError as msg:
-            print(msg)
-
-    def get_rsc_fpaths(self):
-        fs = self.get_filesetXML()
-        return fs.get_fpaths()
 
     def nii_postprocess(self,rsc_label:str,output_label:str,fnc,*fncargs:None):
         '''
@@ -588,15 +575,32 @@ class Scn(_ExpScn):
 
             
     def dcm2nii(self,label="IMAGE", add_date=True, add_desc=True, overwrite=False):
+        self.download_dcm_fns()
         if not self.has_rsc(label) or overwrite==True:
             dcm_fn1= self.dcm_fns[0]
             nii_fname = self.generate_nii_fname(dcm_fn1,add_date, add_desc)
-            tmp_nm= Path("/home/ub/.tmp/{0}".format(nii_fname))
-            img = self._sitk_convert(dcm_fn1)
-            sitk.WriteImage(img,tmp_nm)
-            self.add_rsc(fpath = tmp_nm, label=label)
+            tmp_nm= Path(XNAT_TMP_FLDR+"/{0}".format(nii_fname))
+            try:
+                img = self._sitk_convert(dcm_fn1)
+                sitk.WriteImage(img,tmp_nm)
+                self.add_rsc(fpath = tmp_nm, label=label)
+            except ValueError as e:
+                print("Error processing, pt id: ",self.pt_id)
+                print(e)
+                
         else:
             print("Case id {0}, Desc: {1}. However, resource labelled {2} already exists. Nothing to do.".format(self.pt_id,self.desc,label))
+
+
+    def download_dcm_fns(self):
+        rsc_dcm= [rs for rs in self.resources() if rs.label() in self.datatype]
+        assert len(rsc_dcm)==1,"More than one DICOM resource found for {0}".format(self.pt_id)
+        rsc = rsc_dcm[0]
+        fldr = "/".join([XNAT_TMP_FLDR,self.pt_id])
+        maybe_makedirs(fldr)
+        rsc.get(fldr,extract=True)
+        sub_fldr= Path("/".join([fldr,rsc.id()]))
+        self.dcm_fns = list(sub_fldr.glob("*dcm"))
 
     def _sitk_convert(self,dcm_fn):
             reader = sitk.ImageSeriesReader()
@@ -628,18 +632,18 @@ class Scn(_ExpScn):
     @property
     def desc(self):
         return self.attrs.get("type")
-
-    @property
-    def dcm_fns(self):
-            dcm_fs= self.get_filesetXML()
-            self._dcm_fns  =dcm_fs.get_fpaths()
-            return self._dcm_fns
+    #
+    # @property
+    # def dcm_fns(self):
+    #         dcm_fs= self.get_filesetXML()
+    #         self._dcm_fns  =dcm_fs.get_fpaths()
+    #         return self._dcm_fns
 
 
 class ScnSeg(Scn):
     def __init__(self, pt_id, esp: Scan) -> None:
         super().__init__(pt_id, esp)
-        self.datatype="secondary"
+        self.datatype=["secondary","Segmentation"]
     def dcm2nii(self, label="LABELMAP", add_date=True, add_desc=True, overwrite=False):
         return super().dcm2nii(label=label, add_date=add_date,add_desc=add_desc,overwrite= overwrite)
 
@@ -721,17 +725,22 @@ def get_matching_rsc(fpath,target_label="IMAGE"):
 
 # %%
 if __name__ == "__main__":
+    central , xnat_shadow_folder= login()
         
-    proj_title = 'lidc2'
+    proj_title = 'tciaclm'
 
     proj = Proj(proj_title)
-    proj.create_report()
+    proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
+    # proj.create_report()
 # %%
     subs = proj.subs
     sub =subs[0]
     sub= Subj(sub)
     rscs = sub.rscs
     rsc = rscs[0]
+    scn = sub.scans[0]
+    scn.dcm2nii(label="IMAGE")
+    pt_id = sub.get_pt_id()
 # %%
     proj = central.select.project(proj_title)
     proj.exists()
@@ -741,84 +750,38 @@ if __name__ == "__main__":
     proj.has_rsc('MASK')
     # df = proj.create_report()
 # %%
+# %%
+#SECTION:-------------------- TROUBLESHOOT--------------------------------------------------------------------------------------
 
-    rc = proj.resource("IMAGE_MASK_FPATHS")
-    rc.get("/home/ub/Desktop", extract=True)
-    ss = proj.get_subs_with_rsc(label)
-# %%
-    rc = proj.resource("IMAGE_MASK_FPATHS")
-    csv_fn = rc.get("/tmp/", extract=True)[0]
-    df = pd.read_csv(csv_fn)
-    output_parent = proj.xnat_shadow_folder
-    fldrs = [output_parent/"images", output_parent/"masks"]
-    filesets = df.img_fpaths, df.mask_fpaths
-    maybe_makedirs(fldrs)
-# %%
-    consts = [
-        ("xnat:subjectData/SUBJECT_ID","LIKE","XNAT_S01274"),
-        # ("xnat:subjectData/label","=",case_id),
-    ]
-    ex = central.select('xnat:subjectData').where(consts)
-    ss = central.select("//subject").where(consts)
-    ss = central.select("/project/lidc/subject/LIDC_0078")
-    ss = central.select("/project/lidc0/subjects")
+    sub = proj.subs[1]
+    sub = Subj(sub)
 
-    s.delete()
+    sub.exp_ids = sub.scn.experiments().get()
 # %%
-    for s in ss:
-        try:
-            s.delete()
-        except:
-            exps = s.experiments()
-            for exp in s.experiments():
-                try:
-                    tr()
-                    exp.delete()
-                except:
-                    pass
-# %%
-        
+    sub.scans
+    scn = sub.scans[0]
+
+    x = scn.get()
+    scn.x = ScnXML(x)
 
 
+    central.xpath.checkout(subjects=[sub.id()])
+# %%
+    fs = scn.x.find_all(['xnat:file'])
+    ff = fs[0]
+    uri = ff['URI']
+    os.chmod(uri,0o644)
+
+    scn.x.filesets= [FilesetXML(x) for x in fs ]
 # %%
 
+    self.format  = self.src['format']
+    self.label  = self.src['label']
+    self.uri =  Path(self.src['URI'])
+    self.fldr = self.uri.parent
+    self.x =  load_xml(self.uri)
+    self.fpaths = self.get_fpaths()
 # %%
-    fldr_i = Path("/scn/datasets_bkp/litq/sitk/images")
-    fldr = Path("/home/ub/Desktop/capestart/liver/masks_all_liver_capestart/orphan_masks/")
-    fldr=Path("/home/ub/Desktop/capestart/nodes/output_orphans/")
+    scn.x = ScnXML(scn.get())
+    scn.filesets = scn.x.filesets
 # %%
-
-    files = list(fldr.glob("*"))
-    for fpath in files:
-        if fpath.is_file():
-            upload_nii(fpath,label="IMAGE_THICK")
-
-# %%
-    fpath=files[0]
-
-    fname = fpath.name
-    pat_full = r"(?P<pt_id>[a-z]*_[a-z0-9]+)_(?P<date>\d+)_(?P<desc>.*)_(?P<tag>thick)?_?.*(?=(?P<ext>\.(nii|nrrd)(\.gz)?)$)"
-    fname = cleanup_fname(fname)
-    f2 = 'nodes_44_20220805_1mmBody2p000NeckStandardArterialCoronalCE_thick.nii.gz'
-    m = re.match(pat_full,f2)
-    m.groups()
-
-    parts = fname.split("_")
-    proj_title= parts[0]
-    pt_id = "_".join(parts[:2])
-    date = parts[2]
-     
-    output = [parts[0],parts[1]]
-# %%
-    fn  = fname
-
-    fname = fn.name
-    name = cleanup_fname(fname)
-
-    parts = name.split("_")
-    proj_title = parts[0]
-    case_id = "_".join(parts[:2])
-    outputs=[proj_title,case_id]
-
-    
-    out = info_from_filename(fname)

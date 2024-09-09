@@ -5,7 +5,6 @@ from label_analysis.helpers import get_labels, to_int, to_label
 import functools as fl
 import pandas as pd
 import ipdb
-from sqlalchemy import over
 from xnat.object_oriented import Proj, upload_nii_nodesc
 from fran.utils.imageviewers import ImageMaskViewer, view_sitk
 
@@ -17,7 +16,6 @@ tr = ipdb.set_trace
 from pathlib import  Path
 import SimpleITK as sitk
 from pydicom import dcmread
-from pylidc.utils import consensus
 import matplotlib.pyplot as plt
 import numpy as np
 

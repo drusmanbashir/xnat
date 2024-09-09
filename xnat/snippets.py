@@ -14,11 +14,17 @@ from fran.utils.fileio import maybe_makedirs
 
 # %%
 if __name__ == "__main__":
-    proj_title='tcianodes'
+    proj_title='tcgalihc'
+    proj_title='tciaclm'
     proj = Proj(proj_title)
     proj.collate_metadata()
 # %%
-    proj.dcm2nii(add_date=False,add_desc=False,overwrite=False)
+    proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
+# %%
+    import pwd
+    pw = pwd.getpwnam('xnat')
+    uid = pw.pw_uid
+    os.setuid(uid)
     # df= proj.create_report()
     # proj.export_nii(symlink=True,overwrite=True,ensure_fg=True,label=label)
 # %%
