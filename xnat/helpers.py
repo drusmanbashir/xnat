@@ -6,7 +6,6 @@ import ipdb
 tr = ipdb.set_trace
 
 from fran.utils.fileio import maybe_makedirs, str_to_path
-from fran.utils.helpers import pat_full
 import re
 
 def readable_text(txt):
@@ -34,10 +33,14 @@ def fn_to_attr(fpath:Path):
    
     '''
     fpath =fpath.name
+
+    PAT_FULL = r"(?P<pt_id>[a-z]*_[a-z0-9]+)_(?P<date>\d+)_(?P<desc>.*)_(?P<tag>thick)_?.*(?=(?P<ext>\.(nii|nrrd)(\.gz)?)$)"
+    PAT_NODESC ="(?P<pt_id>[a-z]*_[a-z0-9]*)_(?P<date>\d*)"
+    PAT_IDONLY = "(?P<pt_id>[a-z]*_[a-z0-9]*)"
     #           pt_id    date    desc         tag          extension
     # pat = r"([a-z]+_\d+)_(\d+)(_([a-z0-9]*))?(_([a-z0-9]*))?(_thick)?.*_?(\.nii(\.gz)?)"
     # pat = r"([a-z]+_\d+)_(\d+)_(\w*)_(\w*)((?:\.[a-z]{2,4})+)"
-    a= re.match(pat_full,fpath,re.IGNORECASE)
+    a= re.match(PAT_FULL,fpath,re.IGNORECASE)
     outputs = a.group("pt_id"), a.group("date"), a.group("desc"),a.group("tag"),a.group("ext")
     # outputs ,ext= outputs[:-1], outputs[-1]
     

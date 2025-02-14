@@ -34,7 +34,7 @@ from xnat.helpers import fix_filename, fn_to_attr, readable_text
 
 from fran.utils.fileio import (load_file, load_xml, load_yaml, maybe_makedirs,
                                save_xml, str_to_path)
-from fran.utils.helpers import get_pbar, pat_nodesc
+from fran.utils.helpers import get_pbar
 
 pbar= get_pbar()
 XNAT_TMP_FLDR="/s/tmp/xnat"
