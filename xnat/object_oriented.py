@@ -17,8 +17,8 @@ from label_analysis.helpers import get_labels
 from pydicom import dcmread
 
 from dicom_utils.drli_helper import dcm_segmentation
-from fran.utils.imageviewers import ImageMaskViewer, view_sitk
-from fran.utils.string import cleanup_fname, info_from_filename
+from utilz.imageviewers import ImageMaskViewer, view_sitk
+from utilz.string import cleanup_fname, info_from_filename
 
 tr = ipdb.set_trace
 import errno
@@ -32,9 +32,9 @@ from pyxnat import Interface
 from pyxnat.core.resources import Experiment, Project, Scan, Subject
 from xnat.helpers import fix_filename, fn_to_attr, readable_text
 
-from fran.utils.fileio import (load_file, load_xml, load_yaml, maybe_makedirs,
+from utilz.fileio import (load_file, load_xml, load_yaml, maybe_makedirs,
                                save_xml, str_to_path)
-from fran.utils.helpers import get_pbar
+from utilz.helpers import get_pbar
 
 pbar= get_pbar()
 XNAT_TMP_FLDR="/s/tmp/xnat"

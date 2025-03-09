@@ -4,12 +4,12 @@ import time
 from pathlib import Path
 from tqdm import tqdm
 from xnat.object_oriented import *
-from dicom_utils.capestart_related import collate_nii_foldertree
+from xnat.helpers import collate_nii_foldertree
 
 from dicom_utils.helpers import dcm_segmentation
 from label_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
 from xnat.object_oriented import *
-from fran.utils.fileio import maybe_makedirs
+from utilz.fileio import maybe_makedirs
 
 
 # %%

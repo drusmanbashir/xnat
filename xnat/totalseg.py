@@ -6,11 +6,11 @@ import functools as fl
 import pandas as pd
 import ipdb
 from xnat.object_oriented import Proj, upload_nii_nodesc
-from fran.utils.imageviewers import ImageMaskViewer, view_sitk
+from utilz.imageviewers import ImageMaskViewer, view_sitk
 
-from fran.utils.fileio import maybe_makedirs
-from fran.utils.helpers import chunks, find_matching_fn
-from fran.utils.string import strip_extension
+from utilz.fileio import maybe_makedirs
+from utilz.helpers import chunks, find_matching_fn
+from utilz.string import strip_extension
 tr = ipdb.set_trace
 
 from pathlib import  Path
@@ -153,13 +153,13 @@ if __name__ == "__main__":
 
 # %%
 
-    imgs_fldr = Path("/s/xnat_shadow/totseg/masks/")
-    imgs = list(imgs_fldr.glob("*"))
-    import os
-    for cid in case_ids: 
-     
-        fn1 = [fn for fn in imgs if cid in fn.name][0]
-        os.remove(fn1)
+        imgs_fldr = Path("/s/xnat_shadow/totseg/masks/")
+        imgs = list(imgs_fldr.glob("*"))
+        import os
+        for cid in case_ids: 
+         
+            fn1 = [fn for fn in imgs if cid in fn.name][0]
+            os.remove(fn1)
 
 # %%
 # %%

@@ -1,10 +1,9 @@
 # %%
-from label_analysis.helpers import get_labels
 import pandas as pd
 import ipdb
 from xnat.object_oriented import Proj, upload_nii_nodesc
 
-from fran.utils.fileio import maybe_makedirs
+from utilz.fileio import maybe_makedirs
 tr = ipdb.set_trace
 
 from pathlib import  Path
@@ -16,7 +15,7 @@ import numpy as np
 
 import pylidc as pl
 
-from fran.utils.imageviewers import ImageMaskViewer
+from utilz.imageviewers import ImageMaskViewer
 
 class LIDCProcessor():
     def __init__(self) -> None:
@@ -199,7 +198,6 @@ if __name__ == "__main__":
             lm_np= np.zeros_like(vol)
             lm_np = L.fill_lm(scan,lm_np,clevel=.34)
             img, lm = L.scan_lm_to_nii(scan.spacings,vol,lm_np)
-            get_labels(lm)
 
 
 # %%

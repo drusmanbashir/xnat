@@ -5,7 +5,7 @@ import shutil
 import ipdb
 tr = ipdb.set_trace
 
-from fran.utils.fileio import maybe_makedirs, str_to_path
+from utilz.fileio import maybe_makedirs, str_to_path
 import re
 
 def readable_text(txt):
@@ -27,25 +27,47 @@ def readable_text(txt):
     txt = [txt.replace(k,v) for k,v in badchars.items()][0]
     return txt
 
-def fn_to_attr(fpath:Path):
+# %%
+def fn_to_attr(fpath: Path):
     '''
-    returns : pt_id,date,desc,+/-anythingelse
-   
-    '''
-    fpath =fpath.name
-
-    PAT_FULL = r"(?P<pt_id>[a-z]*_[a-z0-9]+)_(?P<date>\d+)_(?P<desc>.*)_(?P<tag>thick)_?.*(?=(?P<ext>\.(nii|nrrd)(\.gz)?)$)"
-    PAT_NODESC ="(?P<pt_id>[a-z]*_[a-z0-9]*)_(?P<date>\d*)"
-    PAT_IDONLY = "(?P<pt_id>[a-z]*_[a-z0-9]*)"
-    #           pt_id    date    desc         tag          extension
-    # pat = r"([a-z]+_\d+)_(\d+)(_([a-z0-9]*))?(_([a-z0-9]*))?(_thick)?.*_?(\.nii(\.gz)?)"
-    # pat = r"([a-z]+_\d+)_(\d+)_(\w*)_(\w*)((?:\.[a-z]{2,4})+)"
-    a= re.match(PAT_FULL,fpath,re.IGNORECASE)
-    outputs = a.group("pt_id"), a.group("date"), a.group("desc"),a.group("tag"),a.group("ext")
-    # outputs ,ext= outputs[:-1], outputs[-1]
+    Parse filename into components: patient ID, date, description, tag and extension.
     
-    return outputs
+    Args:
+        fpath (Path): Path object containing filename to parse
+        
+    Returns:
+        tuple: (pt_id, date, desc, tag, ext) if successful
+        None: if parsing fails
+        
+    Example:
+        "sub_001_20230615_T1w_thick.nii.gz" ->
+        ("sub_001", "20230615", "T1w", "thick", ".nii.gz")
+    '''
+    fpath = fpath.name
+    
+    # Main pattern with all components
+    PAT_FULL = r"(?P<pt_id>[a-z]*_[a-z0-9]+)_(?P<date>\d+)_(?P<desc>[^_]+)_(?P<tag>[^_\.]+).*(?P<ext>\.(nii|nrrd)(\.gz)?$)"
+    
+    # Fallback patterns
+    PAT_NODESC = r"(?P<pt_id>[a-z]*_[a-z0-9]+)_(?P<date>\d+)(?P<ext>\.(nii|nrrd)(\.gz)?$)"
+    PAT_IDONLY = r"(?P<pt_id>[a-z]*_[a-z0-9]+)(?P<ext>\.(nii|nrrd)(\.gz)?$)"
+    
+    # Try patterns in order of most to least specific
+    for pattern in [PAT_FULL, PAT_NODESC, PAT_IDONLY]:
+        match = re.match(pattern, fpath, re.IGNORECASE)
+        if match:
+            groups = match.groupdict()
+            return (
+                groups.get("pt_id", ""),
+                groups.get("date", ""),
+                groups.get("desc", ""),
+                groups.get("tag", ""),
+                groups.get("ext", "")
+            )
+            
+    return None  # Return None if no pattern matches
    
+# %%
 def fix_filename(fpath):
     '''
     legacy readable_text allowed _num_ formats to circumvent (num). This created fnames with unnecessary _ in them. This function fixes names
@@ -83,6 +105,8 @@ def collate_nii_foldertree(src_fldr,dest_fldr,fname_cond:str=""):
 
 
 
+# %%
+# %%
 
 # %%
 if __name__ == "__main__":

@@ -9,18 +9,18 @@ import ipdb
 from pydicom import dcmread
 from pyxnat.core.resources import shutil
 
-from fran.utils.imageviewers import view_sitk
-from fran.utils.string import strip_extension
+from utilz.imageviewers import view_sitk
+from utilz.string import strip_extension
 tr = ipdb.set_trace
 
 from pathlib import Path
 from bs4 import BeautifulSoup as BS
 from pyxnat import Interface
 
-from fran.utils.helpers import dec_to_str, find_matching_fn, pp
+from utilz.helpers import dec_to_str, find_matching_fn, pp
 central = Interface(server='http://localhost:8080/xnat-web-1.8.8', user='admin', password='admin')
 subject_id = 'your_subject_id'
-from fran.utils.fileio import load_file, load_xml
+from utilz.fileio import load_file, load_xml
 custom_tags = ['tag1', 'tag2', 'tag3']
 # %%
 
