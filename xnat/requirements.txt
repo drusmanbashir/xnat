@@ -1,0 +1,14 @@
+beautifulsoup4>=4.13.3
+fastcore>=1.6.3
+ipdb>=0.13.13
+itk>=5.4.2.post1
+matplotlib>=3.10.1
+numpy
+pandas>=2.2.3
+pydicom>=2.3.0
+pylidc>=0.2.3
+pyxnat>=1.6.2
+SimpleITK>=2.4.1
+tqdm>=4.66.5
+git+https://github.com/drusmanbashir/utilz.git@main#egg=utilz
+git+https://github.com/drusmanbashir/dicom_utils.git@main#egg=dicom_utils
