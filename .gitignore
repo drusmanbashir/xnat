@@ -4,5 +4,8 @@
 .project_root
 *.nii
 *.nii.gz
-
+*jpg
 *.egg-info/
+build/
+dist/
+__pycache__
