@@ -16,7 +16,9 @@ from utilz.fileio import maybe_makedirs
 if __name__ == "__main__":
     proj_title='tcgalihc'
     proj_title='tciaclm'
+    proj_title='nodes'
     proj = Proj(proj_title)
+# %%
     proj.collate_metadata()
 # %%
     proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
@@ -33,7 +35,8 @@ if __name__ == "__main__":
 
     df = pd.read_csv(csv_fn)
     df.dropna(inplace=True)
-    fldrs = proj.export_folder/"images", proj.export_folder/"masks"+    [maybe_makedirs(f) for f in fldrs]
+    fldrs = proj.export_folder/"images",
+    # proj.export_folder/"masks"+    [maybe_makedirs(f) for f in fldrs]
     filesets=  df.img_fpaths, df.mask_fpaths
 
 # %%
@@ -45,7 +48,7 @@ if __name__ == "__main__":
 # %%
 # %%
 
-    fldr = Path("/s/xnat_shadow/crc/images_more/")
+    fldr = Path("/s/xnat_shadow/nodes/images_more/")
     fldr1 = fldr/("images")
     fldr2 = fldr/("masks")
     maybe_makedirs([fldr1,fldr2])
@@ -60,8 +63,12 @@ if __name__ == "__main__":
             sub.download_rscs("IMAGE",fldr1)
         # sub.download_rscs("LM_GT",fldr2)
 # %%
-    collate_nii_foldertree(fldr2,fldr2)
+    fldr2 ="/r/tmp/notes" 
+    fldr3 ="/r/tmp/nodes" 
+    collate_nii_foldertree(fldr2,fldr3)
     collate_nii_foldertree(fldr1,fldr1)
+# %%
+
 
 
 

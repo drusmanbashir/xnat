@@ -10,7 +10,7 @@ from pydicom import dcmread
 from pyxnat.core.resources import shutil
 
 from utilz.imageviewers import view_sitk
-from utilz.string import strip_extension
+from utilz.string import info_from_filename, strip_extension
 tr = ipdb.set_trace
 
 from pathlib import Path
@@ -38,6 +38,60 @@ if __name__ == "__main__":
         shutil.move(fn,fn_out)
 
 
+# %%
+
+    fldr3 ="/r/tmp/nodes" 
+    fn_all = list(Path(fldr3).glob("*"))
+
+
+    imgs= Path("/s/xnat_shadow/nodes/images")
+    imgs_pending = Path("/s/xnat_shadow/nodes/images_pending")
+
+    fns_pending = list(imgs_pending.glob("*"))
+    fns = list(imgs.glob("*"))
+    fns_all = fns_pending+fns
+
+    cids_done = [info_from_filename(fn.name)['case_id'] for fn in fns_all]
+    cids_done = set(cids_done)
+    print(len(cids_done))
+    
+    # Filter out files from fn_all that have CIDs matching those in cids_done
+# %%
+    fn_all_filtered = []
+    dones=[]
+    for fn in fn_all:
+        cid = info_from_filename(fn.name)['case_id']
+        if cid not in cids_done:
+            fn_all_filtered.append(fn)
+        else:
+            dones.append(cid)
+    dones_confirmed = set(dones)
+    print(len(dones_confirmed))    
+    # Replace the original fn_all with the filtered version
+    # fn_all = fn_all_filtered
+
+# %%
+    for fn in fn_all_filtered:
+        shutil.move(fn,imgs_pending)
+
+    # Filter files in imgs_pending that have "neck" (case insensitive) in their names
+# %%
+    import re
+    
+    neck_pattern = re.compile(r'neck', re.IGNORECASE)
+    neck_files = [fn for fn in list(imgs_pending.glob("*")) if neck_pattern.search(fn.name)]
+
+    fldr_necks=Path("/s/xnat_shadow/nodes/images_pending_necks")
+    for fn in neck_files:
+        shutil.move(fn,fldr_necks)
+    
+# %%
+    print(f"Found {len(neck_files)} files with 'neck' in their names:")
+
+# %%
+    for fn in neck_files:
+            print(f"  - {fn.name}")
+    
 # %%
     fldr_lm = Path("/s/xnat_shadow/nodes/nodes_thin/lms")
     fns  = list(fldr_lm.glob("*.*"))
