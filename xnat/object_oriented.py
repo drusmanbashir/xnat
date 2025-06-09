@@ -6,7 +6,6 @@ import os
 import re
 import shutil
 from shutil import SameFileError
-from typing import Union
 
 import ipdb
 import numpy as np
@@ -58,7 +57,7 @@ class _XMLObj(GetAttr):
     _default = 'src'
 
     def __init__(self,src):
-        if not isinstance(src,Union[BS,Tag]): src = BS(src,features="xml")
+        if not isinstance(src,(BS,Tag)): src = BS(src,features="xml")
         store_attr()
 
     def __repr__(self) -> str:
@@ -403,13 +402,13 @@ class Proj(_BaseObj):
 class Subj(GetAttr):
     _default= 'scn'
     def __init__(self,scn:Subject):
-        assert isinstance(scn,Union[pyxnat.core.resources.Subject,Subject]),"Initialize with a Subject instance please"
+        assert isinstance(scn,(pyxnat.core.resources.Subject,Subject)),"Initialize with a Subject instance please"
         store_attr() 
         self.exp_ids = self.scn.experiments().get()
         self.get_rscs()
 
 
-    def exp(self, id:Union[str,int]):
+    def exp(self, id:(str|int)):
         if isinstance(id,int):
             id = self.exp_ids[id]
         exp = self.scn.experiment(id)
@@ -673,7 +672,7 @@ def upload_nii(fpath,has_date=True,fpath_tags=['case_id'], xnat_tags:list=[], la
         scan_matched.add_rsc(fpath,label=label,tags=xnat_tags)
        
 
-def upload_nii_nodesc(fpath:Union[str,Path],label,tags:list=[]):
+def upload_nii_nodesc(fpath:str|Path,label,tags:list=[]):
         '''
         retrieves project_id, pt_name. Without description given, it uploads the nii to the first scan in exp.scans list
         '''
@@ -784,4 +783,6 @@ if __name__ == "__main__":
 # %%
     scn.x = ScnXML(scn.get())
     scn.filesets = scn.x.filesets
+# %j
+
 # %%
