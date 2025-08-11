@@ -5,7 +5,7 @@ if __name__ == "__main__":
     
 # %%
     c,_ = login()
-    proj_title='lidc2'
+    proj_title='nodes'
     proj = Proj(proj_title)
     subs = proj.subjects()
     # df= proj.create_report()

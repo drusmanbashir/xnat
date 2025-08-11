@@ -7,6 +7,9 @@ from xnat.object_oriented import *
 from xnat.helpers import collate_nii_foldertree
 
 from dicom_utils.helpers import dcm_segmentation
+from xnat.object_oriented import Subj
+from pathlib import Path
+import os
 from label_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
 from xnat.object_oriented import *
 from utilz.fileio import maybe_makedirs
@@ -28,6 +31,31 @@ if __name__ == "__main__":
     uid = pw.pw_uid
     os.setuid(uid)
     # df= proj.create_report()
+# %%
+
+
+# ---- Config ----
+    pt_id = "nodes_110"               # Your subject ID (without project prefix)
+    project = "nodes"              # Your project name
+    scan_index = 0                 # Or choose scan ID directly
+    label = "IMAGE"                # Resource label
+    dest = Path("/tmp/xnat_manual")  # Local download path
+    dest.mkdir(parents=True, exist_ok=True)
+
+# ---- Load subject and scan ----
+    sub = Subj.from_pt_id('110','nodes')
+    scan = sub.scans[scan_index]  # or sub.scans[scan_id] if you know it
+
+    rscs = scan.esp.resources()
+    print(list(rscs))
+# ---- Download resource ----
+    rsc = next((r for r in scan.esp.resources() if r.label() == label), None)
+    if not rsc:
+        print(f"No resource labeled {label} found.")
+    else:
+        print(f"Downloading {label} to {dest}...")
+        rsc.get(dest, extract=True)
+        print("Done.")
     # proj.export_nii(symlink=True,overwrite=True,ensure_fg=True,label=label)
 # %%
     subs = proj.subjects()
@@ -157,19 +185,22 @@ if __name__ == "__main__":
 # %%
     mask_label = "MASK_THICK"
     img_label = mask_label.replace("MASK","IMAGE")
+    img_label = "IMAGE"
     csv_label ="IMAGE_MASK_FPATHS"
-    ss = proj.get_subs_with_rsc(mask_label)
+    ss = proj.get_subs_with_rsc(img_label)
     img_fpaths,mask_fpaths=[],[]
-    for s in ss:
-            scns = [scn for scn in s.scans if scn.has_rsc(mask_label)]
+# %%
+    for s in ss[:10]:
+            scns = [scn for scn in s.scans if scn.has_rsc(img_label)]
             for sc in scns:
                 mask_fpaths.append(sc.get_rsc_fpaths(mask_label)[0])
                 img_fpaths.append(sc.get_rsc_fpaths(img_label)[0])
+# %%
     tmp = list(zip(img_fpaths,mask_fpaths))
     df = pd.DataFrame(tmp, columns = ["img_fpaths","mask_fpaths"])
     csv_fn = Path("/tmp/img_mask_fpaths.csv")
     df.to_csv(csv_fn,index=False)
-    proj.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
+    # proj.add_rsc(csv_fn,label=csv_label,content="CSV",format="CSV",force=True)
 
 # %%
 # %% [markdown]

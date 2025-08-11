@@ -80,17 +80,29 @@ if __name__ == "__main__":
     
     neck_pattern = re.compile(r'neck', re.IGNORECASE)
     neck_files = [fn for fn in list(imgs_pending.glob("*")) if neck_pattern.search(fn.name)]
-
-    fldr_necks=Path("/s/xnat_shadow/nodes/images_pending_necks")
+    
+    # Create a copy of neck_files for later reference
+    neck_files_info = [fn.name for fn in neck_files]
+    
+    # Create the destination directory if it doesn't exist
+    fldr_necks = Path("/s/xnat_shadow/nodes/images_pending_necks")
+    if not fldr_necks.exists():
+        fldr_necks.mkdir(parents=True, exist_ok=True)
+    
+    # Move the files
     for fn in neck_files:
-        shutil.move(fn,fldr_necks)
+        try:
+            shutil.move(str(fn), str(fldr_necks))
+            print(f"Moved {fn.name} to {fldr_necks}")
+        except Exception as e:
+            print(f"Error moving {fn.name}: {e}")
     
 # %%
-    print(f"Found {len(neck_files)} files with 'neck' in their names:")
+    print(f"Found {len(neck_files_info)} files with 'neck' in their names:")
 
 # %%
-    for fn in neck_files:
-            print(f"  - {fn.name}")
+    for name in neck_files_info:
+        print(f"  - {name}")
     
 # %%
     fldr_lm = Path("/s/xnat_shadow/nodes/nodes_thin/lms")
