@@ -394,7 +394,7 @@ class Proj(_BaseObj):
         return fpath
 
     def dcm2nii(self, add_date, add_desc, overwrite):
-        for i, sub in enumerate(self.subs):
+        for i, sub in pbar(enumerate(self.subs)):
             sub = Subj(sub)
             for scn in sub.scans:
                 scn.dcm2nii(add_date=add_date, add_desc=add_desc, overwrite=overwrite)

@@ -20,11 +20,12 @@ if __name__ == "__main__":
     proj_title='tcgalihc'
     proj_title='tciaclm'
     proj_title='nodes'
+    proj_title='lidc'
     proj = Proj(proj_title)
 # %%
-    proj.collate_metadata()
-# %%
     proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
+# %%
+    proj.collate_metadata()
 # %%
     import pwd
     pw = pwd.getpwnam('xnat')
