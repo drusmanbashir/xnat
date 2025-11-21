@@ -19,8 +19,8 @@ from utilz.fileio import maybe_makedirs
 if __name__ == "__main__":
     proj_title='tcgalihc'
     proj_title='tciaclm'
-    proj_title='nodes'
     proj_title='lidc'
+    proj_title='nodes'
     proj = Proj(proj_title)
 # %%
     proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
