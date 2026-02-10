@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xnat"
+version = "0.0.0"
+description = "XNAT utilities for Slicer-based workflows"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+  "utilz @ git+https://github.com/drusmanbashir/utilz.git@main",
+  "dicom_utils @ git+https://github.com/drusmanbashir/dicom_utils.git@main",
+  "pylidc>=0.2.3",
+  "pyxnat>=1.6.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xnat*"]

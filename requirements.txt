@@ -1,5 +1,0 @@
-utilz @ git+https://github.com/drusmanbashir/utilz.git@main
-dicom_utils @ git+https://github.com/drusmanbashir/dicom_utils.git@main
-pylidc>=0.2.3
-pyxnat>=1.6.2
-

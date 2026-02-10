@@ -1,7 +1,6 @@
 # %%
 import itertools as il
 import os
-import re
 import shutil
 from shutil import SameFileError
 from typing import Union
@@ -16,26 +15,24 @@ from dicom_utils.metadata import *
 from fastcore.basics import listify, store_attr
 from label_analysis.helpers import get_labels
 from pydicom import dcmread
-from utilz.imageviewers import ImageMaskViewer, view_sitk
+from tqdm.auto import tqdm
 from utilz.string import cleanup_fname, info_from_filename
 
 tr = ipdb.set_trace
 import errno
 import itertools as il
+import logging
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from bs4 import BeautifulSoup as BS
 from bs4.element import Tag
-from fastcore.basics import GetAttr, patch_to
+from fastcore.basics import GetAttr
 from pyxnat import Interface
-from pyxnat.core.resources import Experiment, Project, Scan, Subject
-from utilz.fileio import (load_file, load_xml, load_yaml, maybe_makedirs,
-                          save_xml, str_to_path)
-from utilz.helpers import get_pbar
+from pyxnat.core.resources import Experiment, Scan, Subject
+from utilz.fileio import load_xml, load_yaml, maybe_makedirs, str_to_path
 
-from xnat.helpers import fix_filename, fn_to_attr, readable_text
-import logging
-from concurrent.futures import ProcessPoolExecutor
+from xnat.helpers import readable_text
 
 LOG_DIR = Path("/tmp/logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -49,10 +46,8 @@ if not logger.handlers:
     fmt = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s")
     fh.setFormatter(fmt)
     logger.addHandler(fh)
-pbar = get_pbar()
 XNAT_TMP_FLDR = "/s/tmp/xnat"
 
-from contextlib import closing
 
 def is_lm(label):
     candidates = ["MASK", "LABEL", "LM"]
@@ -230,7 +225,7 @@ class Proj(_BaseObj):
 
     def get_subs_with_rsc(self, label="MASK"):
         subs_with_rsc = []
-        for ss in pbar(self.subs):
+        for ss in tqdm(self.subs):
             ss = Subj(ss)
 
             rscs = ss.get_rscs()
@@ -305,7 +300,7 @@ class Proj(_BaseObj):
         )
         all_exps = []
         subs = list(self.subs)
-        for i in pbar(range(len(subs))):
+        for i in tqdm(range(len(subs))):
             sub = subs[i]
             sub = Subj(sub)
             case_id = sub.get_pt_id()
@@ -348,10 +343,9 @@ class Proj(_BaseObj):
         else:
             search_level = "scans"
             tag = "file"
-        csv_label = "RESOURCES"
         print("Adding filepath info")
         df = []
-        for sub in pbar(self.subs):
+        for sub in tqdm(self.subs):
             sub = Subj(sub)
             dici = sub.get_info()
             ses = getattr(sub, search_level)
@@ -381,7 +375,7 @@ class Proj(_BaseObj):
     def get_label_info(self, mask_fnames):
         labels = []
         print("Adding label info")
-        for mask_fn in pbar(mask_fnames):
+        for mask_fn in tqdm(mask_fnames):
             lm = sitk.ReadImage(mask_fn)
             labs = get_labels(lm)
             if len(labs) == 0:
@@ -397,8 +391,19 @@ class Proj(_BaseObj):
         fpath = fldr / entry["URI"]
         return fpath
 
-    def dcm2nii(self, add_date, add_desc, overwrite):
-        for i, sub in pbar(enumerate(self.subs)):
+    def dcm2nii(self, add_date, add_desc, overwrite,subs=[]):
+        if len(subs) > 0:
+            subs_to_do = []
+            subs = [str(s) for s in subs]
+            for sub in self.subs:
+                if sub.label() in subs:
+                    subs_to_do.append(sub)
+            if len(subs_to_do) < len(subs):
+                print("Not all subjects found. Use id labels like: {}".format(self.subs[0].label()))
+                print("Found: {}".format([s.label() for s in subs_to_do]))
+        else:
+            subs_to_do = self.subs
+        for  sub in tqdm(subs_to_do):
             sub = Subj(sub)
             for scn in sub.scans:
                 scn.dcm2nii(add_date=add_date, add_desc=add_desc, overwrite=overwrite)
@@ -454,7 +459,6 @@ class Proj(_BaseObj):
 
 class Subj(GetAttr):
     _default = "scn"
-
     def __init__(self, scn: Subject):
         assert isinstance(
             scn, (pyxnat.core.resources.Subject, Subject)
@@ -506,7 +510,7 @@ class Subj(GetAttr):
 
     @property
     def test(self):
-        test = self.attrs.get("ethnicity")
+        self.attrs.get("ethnicity")
 
     @property
     def exp_ids(self):
@@ -577,7 +581,7 @@ class Rsc(GetAttr):
 
 def resolve_scan_object(datatype):
     modalities = "xnat:ctScanData", "xnat:mrScanData"
-    ignore = ["xnat:otherDicomScanData",'xnat:srScanData','xnat:scScanData']
+    ignore = ["xnat:otherDicomScanData", "xnat:srScanData", "xnat:scScanData"]
     if datatype == "xnat:segScanData":
         scnobj = ScnSeg
     elif datatype in modalities:
@@ -687,7 +691,7 @@ class Scn(_ExpScn):
 
         try:
             img = reader.Execute()
-        except RuntimeError as e:
+        except RuntimeError:
             # store folder name when SimpleITK fails
             logger.exception(
                 "Scn._sitk_convert failed for pt_id=%s folder=%s first_dcm=%s",
@@ -699,6 +703,7 @@ class Scn(_ExpScn):
             raise
 
         return img
+
     def generate_nii_fname(self, dcm_file, date=True, desc=True):
         fname = self.pt_id
         if date == True:
@@ -803,7 +808,7 @@ def fname_to_exp(fname: str, has_date: bool):
             if exp.date == date:
                 exp_matched.append(exp)
     else:
-        exps = sub.exps[0]
+        sub.exps[0]
     return exp_matched
 
 
@@ -812,7 +817,7 @@ def get_matching_rsc(fpath, target_label="IMAGE", has_date=True):
     exps = fname_to_exp(fpath, has_date=has_date)
     for e in exps:
         scn = e.scans[0]
-        rs = scn.resources()
+        scn.resources()
         rr = scn.get_rsc_fpaths(target_label)
         if len(rr) != 1:
             tr()
@@ -820,6 +825,7 @@ def get_matching_rsc(fpath, target_label="IMAGE", has_date=True):
         if cleanup_fname(rr.name) != cleanup_fname(fpath.name):
             tr()
         return rr
+
 
 from concurrent.futures import ProcessPoolExecutor
 
@@ -834,18 +840,20 @@ def _process_scan_job(job):
     central, _ = login()
     proj = central.select.project(proj_title)
     subj = proj.subject(subject_id)
-    exp  = subj.experiment(exp_id)
-    scn  = Scn(subject_id, exp.scan(scan_id))
+    exp = subj.experiment(exp_id)
+    scn = Scn(subject_id, exp.scan(scan_id))
 
     scn.dcm2nii(add_date=add_date, add_desc=add_desc, overwrite=overwrite)
     return (subject_id, exp_id, scan_id)
 
-def dcm2nii_parallel(proj_title: str, add_date=True, add_desc=True,
-                     overwrite=False, max_workers=8):
+
+def dcm2nii_parallel(
+    proj_title: str, add_date=True, add_desc=True, overwrite=False, max_workers=8
+):
     """
     Parallel DICOM→NIfTI across scans in a project.
     """
-    proj = Proj(proj_title)
+    Proj(proj_title)
     central, _ = login()
     proj_obj = central.select.project(proj_title)
 
@@ -861,12 +869,22 @@ def dcm2nii_parallel(proj_title: str, add_date=True, add_desc=True,
             for scn in exp.scans:
                 scan_id = scn.esp.id()
                 jobs.append(
-                    (proj_title, subject_id, exp_id, scan_id, add_date, add_desc, overwrite)
+                    (
+                        proj_title,
+                        subject_id,
+                        exp_id,
+                        scan_id,
+                        add_date,
+                        add_desc,
+                        overwrite,
+                    )
                 )
 
     with ProcessPoolExecutor(max_workers=max_workers) as ex:
         for _ in ex.map(_process_scan_job, jobs):
             pass
+
+
 # %%
 # %%
 if __name__ == "__main__":
@@ -903,10 +921,16 @@ if __name__ == "__main__":
             for scn in exp.scans:
                 scan_id = scn.esp.id()
                 jobs.append(
-                    (proj_title, subject_id, exp_id, scan_id, add_date, add_desc, overwrite)
+                    (
+                        proj_title,
+                        subject_id,
+                        exp_id,
+                        scan_id,
+                        add_date,
+                        add_desc,
+                        overwrite,
+                    )
                 )
-
-
 
 # %%
     dcm2nii_parallel(proj_title, add_date=True, add_desc=True, overwrite=False)
@@ -922,7 +946,6 @@ if __name__ == "__main__":
     #             jobs.append(
     #                 (proj_title, subject_id, exp_id, scan_id)
     #             )
-
 
 # %%
     subs = proj.subs
@@ -944,7 +967,7 @@ if __name__ == "__main__":
     # df = proj.create_report()
 
 # %%
-# SECTION:-------------------- TROUBLESHOOT-------------------------------------------------------------------------------------- <CR> <CR>
+# SECTION:-------------------- TROUBLESHOOT-------------------------------------------------------------------------------------- <CR> <CR> <CR>
 
     sub = proj.subs[1]
     sub = Subj(sub)
@@ -966,4 +989,3 @@ if __name__ == "__main__":
 
     scn.x.filesets = [FilesetXML(x) for x in fs]
 # %%
-

@@ -3,6 +3,7 @@ import shutil
 import time
 from pathlib import Path
 from tqdm import tqdm
+from utilz.helpers import set_autoreload
 from xnat.object_oriented import *
 from xnat.helpers import collate_nii_foldertree
 
@@ -17,13 +18,25 @@ from utilz.fileio import maybe_makedirs
 
 # %%
 if __name__ == "__main__":
+    set_autoreload()
     proj_title='tcgalihc'
     proj_title='tciaclm'
     proj_title='lidc'
     proj_title='nodes'
     proj = Proj(proj_title)
 # %%
+    subs = [139, 141, 142]
+    proj.dcm2nii(add_date=True,add_desc=True,overwrite=False, subs=subs)
+# %%
     proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
+
+# %%
+    subs_to_do = []
+    for sub in proj.subs:
+        if sub.label() in subs:
+            subs_to_do.append(sub)
+
+# %%
 # %%
     proj.collate_metadata()
 # %%
