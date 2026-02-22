@@ -11,7 +11,7 @@ requires-python = ">=3.12"
 
 dependencies = [
   "utilz @ git+https://github.com/drusmanbashir/utilz.git@main",
-  "dicom_utils @ git+https://github.com/drusmanbashir/dicom_utils.git@main",
+  "dicom_utils @ git+https://github.com/drusmanbashir/dicom_utils.git@pyproject-migration",
   "pylidc>=0.2.3",
   "pyxnat>=1.6.2",
 ]
@@ -19,3 +19,6 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["xnat*"]
+
+[project.scripts]
+xnat-cli = "xnat.cli:main"
