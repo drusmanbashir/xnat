@@ -1,19 +1,24 @@
 #
 import numpy as np
 import configparser
-img_fns = list(dest_fldr.rglob("IMAGE/*.nii.gz"))
 
 # NumPy 2.0+: restore deprecated aliases used by pylidc
-if not hasattr(np, "int"):    np.int = int
-if not hasattr(np, "float"):  np.float = float
-if not hasattr(np, "bool"):   np.bool = bool
+if not hasattr(np, "int"): np.int = int
+if not hasattr(np, "float"): np.float = float
+if not hasattr(np, "bool"): np.bool = bool
 if not hasattr(np, "object"): np.object = object
 
 # Python 3.12+: restore SafeConfigParser alias used by pylidc
 if not hasattr(configparser, "SafeConfigParser"):
     configparser.SafeConfigParser = configparser.ConfigParser
 
-import pylidc as pl 
+try:
+    import pylidc as pl
+    from pylidc.utils import consensus
+except Exception:
+    pl = None
+    consensus = None
+
 import ipdb
 from xnat.object_oriented import Proj
 
@@ -22,16 +27,16 @@ tr = ipdb.set_trace
 
 from pathlib import  Path
 import SimpleITK as sitk
-from pylidc.utils import consensus
 import numpy as np
 
-import pylidc as pl
 
 
 class LIDCProcessor():
     """Processes LIDC-IDRI dataset scans and uploads them to XNAT."""
     
     def __init__(self) -> None:
+        if pl is None or consensus is None:
+            raise ImportError("pylidc (and its dependencies, including pkg_resources/setuptools) is required for LIDCProcessor")
         self.proj_title = "lidc"
         self.proj = Proj("lidc")
         self.scans = pl.query(pl.Scan).filter()
