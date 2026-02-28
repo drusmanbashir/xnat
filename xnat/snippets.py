@@ -22,18 +22,19 @@ if __name__ == "__main__":
     proj_title='tcgalihc'
     proj_title='tciaclm'
     proj_title='lidc'
-    proj_title='nodes'
+    proj_title='bones'
+    proj_title='litq'
     proj = Proj(proj_title)
 # %%
     subs = [139, 141, 142]
     proj.dcm2nii(add_date=True,add_desc=True,overwrite=False, subs=subs)
 # %%
-    proj.dcm2nii(add_date=True,add_desc=True,overwrite=False)
+    proj.dcm2nii(add_date=True,add_desc=True,overwrite=True)
 
 # %%
+
     subs_to_do = []
     for sub in proj.subs:
-        if sub.label() in subs:
             subs_to_do.append(sub)
 
 # %%
@@ -174,18 +175,17 @@ if __name__ == "__main__":
 
 
 # %% [markdown]
-## Upload MASKS
+# %%
+#SECTION:-------------------- UPLOAD GT--------------------------------------------------------------------------------------
 # %%
 
 
-
-    fldr = Path("/s/datasets_bkp/crc_project/nifti/masks_ub/finalised/")
-    fpath = Path("/s/xnat_shadow/crc/wxh/masks_manual_final/crc_CRC326_20140110_ABDOMEN.nrrd")
 # %%
 
+    fldr = Path("/s/datasets_bkp/litq/sitk/lms")
     for fpath in fldr.glob("*"):
         if fpath.is_file():
-            upload_nii(fpath,label="LABEL_GT",xnat_tags=['manual'])
+            upload_nii(fpath,has_desc=False,label="LABELMAP",xnat_tags=[])
 
 
 # %% [markdown]

@@ -2,6 +2,7 @@
 import itertools as il
 import os
 import shutil
+import tempfile
 from shutil import SameFileError
 from typing import Union
 
@@ -16,7 +17,7 @@ from fastcore.basics import listify, store_attr
 from label_analysis.helpers import get_labels
 from pydicom import dcmread
 from tqdm.auto import tqdm
-from utilz.string import cleanup_fname, info_from_filename
+from utilz.stringz import cleanup_fname, info_from_filename
 
 tr = ipdb.set_trace
 import errno
@@ -652,24 +653,27 @@ class Scn(_ExpScn):
 
     def dcm2nii(self, label="IMAGE", add_date=True, add_desc=True, overwrite=False):
         self.download_dcm_fns()
-        if not self.has_rsc(label) or overwrite == True:
-            dcm_fn1 = self.dcm_fns[0]
-            nii_fname = self.generate_nii_fname(dcm_fn1, add_date, add_desc)
-            tmp_nm = Path(XNAT_TMP_FLDR + "/{0}".format(nii_fname))
-            try:
-                img = self._sitk_convert(dcm_fn1)
-                sitk.WriteImage(img, tmp_nm)
-                self.add_rsc(fpath=tmp_nm, label=label)
-            except Exception as e:
-                print("Error processing, pt id: ", self.pt_id)
-                print(e)
-
-        else:
-            print(
-                "Case id {0}, Desc: {1}. However, resource labelled {2} already exists. Nothing to do.".format(
-                    self.pt_id, self.desc, label
+        if self.has_rsc(label):
+            if overwrite == True:
+                self.del_rsc(label)
+            else:
+                print(
+                    "Case id {0}, Desc: {1}. However, resource labelled {2} already exists. Nothing to do.".format(
+                        self.pt_id, self.desc, label
+                    )
                 )
-            )
+                return
+
+        dcm_fn1 = self.dcm_fns[0]
+        nii_fname = self.generate_nii_fname(dcm_fn1, add_date, add_desc)
+        tmp_nm = Path(XNAT_TMP_FLDR + "/{0}".format(nii_fname))
+        try:
+            img = self._sitk_convert(dcm_fn1)
+            sitk.WriteImage(img, tmp_nm)
+            self.add_rsc(fpath=tmp_nm, label=label)
+        except Exception as e:
+            print("Error processing, pt id: ", self.pt_id)
+            print(e)
 
     def download_dcm_fns(self):
         rsc_dcm = [rs for rs in self.resources() if rs.label() in self.datatype]
@@ -677,11 +681,19 @@ class Scn(_ExpScn):
             self.pt_id
         )
         rsc = rsc_dcm[0]
-        fldr = "/".join([XNAT_TMP_FLDR, self.pt_id])
-        maybe_makedirs(fldr)
-        rsc.get(fldr, extract=True)
-        sub_fldr = Path("/".join([fldr, rsc.id()]))
-        self.dcm_fns = list(sub_fldr.glob("*dcm"))
+
+        # Use a unique temp folder per scan-job to avoid cross-process races.
+        tmp_fldr = Path(
+            tempfile.mkdtemp(prefix=f"{self.pt_id}_", dir=XNAT_TMP_FLDR)
+        )
+        rsc.get(str(tmp_fldr), extract=True)
+
+        sub_fldr = tmp_fldr / rsc.id()
+        dcm_fns = list(sub_fldr.glob("*dcm"))
+        if len(dcm_fns) == 0:
+            # Fallback for unusual catalog extraction layouts.
+            dcm_fns = [p for p in tmp_fldr.rglob("*") if p.is_file() and p.suffix.lower() == ".dcm"]
+        self.dcm_fns = dcm_fns
 
     def _sitk_convert(self, dcm_fn):
         reader = sitk.ImageSeriesReader()
@@ -750,7 +762,7 @@ class ScnSeg(Scn):
 
 
 def upload_nii(
-    fpath, has_date=True, fpath_tags=["case_id"], xnat_tags: list = [], label=""
+    fpath, has_date=True,has_desc=True, fpath_tags=["case_id"], xnat_tags: list = [], label=""
 ):
     """
     retrieves project_id, pt_name, and scan from fpath and adds it as a resource
@@ -762,12 +774,17 @@ def upload_nii(
         for scn in e.scans:
             desc, date = readable_text(scn.desc), scn.date
             outputs = info_from_filename(fpath.name)
-            odesc, odate = outputs["desc"], outputs["date"]
-            if desc.lower() == odesc.lower() and date == odate:
-                print(
-                    "Matching CT scan found: date {0} id {1}".format(e.date, scn.id())
-                )
-                scans_matched.append(scn)
+            odesc, odate = outputs.get("desc", "none"),  outputs.get("date")
+            if has_desc==True:
+                matched = all([desc.lower() == odesc.lower(), date == odate]) 
+            else:
+                matched = date==odate
+            if matched==True:
+                    print(
+                        "Matching CT scan found: date {0} id {1}".format(e.date, scn.id())
+                    )
+                    scans_matched.append(scn)
+
     if len(scans_matched) != 1:
         tr()
     scan_matched = scans_matched[0]
@@ -835,16 +852,25 @@ def _process_scan_job(job):
     Worker: reconstruct XNAT objects in this process,
     run dcm2nii for one scan.
     """
-    proj_title, subject_id, exp_id, scan_id, add_date, add_desc, overwrite = job
+    (
+        proj_title,
+        subject_id,
+        pt_id,
+        exp_id,
+        scan_id,
+        add_date,
+        add_desc,
+        overwrite,
+    ) = job
 
     central, _ = login()
     proj = central.select.project(proj_title)
     subj = proj.subject(subject_id)
     exp = subj.experiment(exp_id)
-    scn = Scn(subject_id, exp.scan(scan_id))
+    scn = Scn(pt_id, exp.scan(scan_id))
 
     scn.dcm2nii(add_date=add_date, add_desc=add_desc, overwrite=overwrite)
-    return (subject_id, exp_id, scan_id)
+    return (subject_id, pt_id, exp_id, scan_id)
 
 
 def dcm2nii_parallel(
@@ -859,10 +885,11 @@ def dcm2nii_parallel(
 
     jobs = []
 
-    # Build a list of (project, subject_id, exp_id, scan_id, ...) tuples
+    # Build a list of (project, subject_id, pt_id, exp_id, scan_id, ...) tuples
     for subj_res in proj_obj.subjects():
         subject_id = subj_res.id()
         subj = Subj(subj_res)
+        pt_id = subj.get_pt_id()
 
         for exp in subj.exps:
             exp_id = exp.esp.id()
@@ -872,6 +899,7 @@ def dcm2nii_parallel(
                     (
                         proj_title,
                         subject_id,
+                        pt_id,
                         exp_id,
                         scan_id,
                         add_date,
@@ -911,10 +939,11 @@ if __name__ == "__main__":
 
     jobs = []
 
-    # Build a list of (project, subject_id, exp_id, scan_id, ...) tuples
+    # Build a list of (project, subject_id, pt_id, exp_id, scan_id, ...) tuples
     for subj_res in proj_obj.subjects():
         subject_id = subj_res.id()
         subj = Subj(subj_res)
+        pt_id = subj.get_pt_id()
 
         for exp in subj.exps:
             exp_id = exp.esp.id()
@@ -924,6 +953,7 @@ if __name__ == "__main__":
                     (
                         proj_title,
                         subject_id,
+                        pt_id,
                         exp_id,
                         scan_id,
                         add_date,
