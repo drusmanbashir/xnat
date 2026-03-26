@@ -13,7 +13,7 @@ import pyxnat
 import SimpleITK as sitk
 from dicom_utils.drli_helper import dcm_segmentation
 from dicom_utils.metadata import *
-from fastcore.basics import listify, store_attr
+from fastcore.basics import listify
 from label_analysis.helpers import get_labels
 from pydicom import dcmread
 from tqdm.auto import tqdm
@@ -75,7 +75,7 @@ class _XMLObj(GetAttr):
     def __init__(self, src):
         if not isinstance(src, (BS, Tag)):
             src = BS(src, features="xml")
-        store_attr()
+        self.src = src
 
     def __repr__(self) -> str:
         repr = self.src.__repr__()
@@ -152,18 +152,11 @@ class ScnXML(_XMLObj):
         return super().__repr__()
 
 
-#
-#     def __init__(self,src):
-#         super().__init__(src)
-#
-#         store_attr()
-
-
 class _BaseObj(GetAttr):
     _default = "esp"
 
     def __init__(self, esp) -> None:
-        store_attr()
+        self.esp = esp
 
     def __repr__(self) -> str:
         return self.esp.__repr__()
@@ -202,7 +195,7 @@ class _ExpScn(_BaseObj):
 
     def __init__(self, pt_id, esp) -> None:
         super().__init__(esp)
-        store_attr("pt_id")
+        self.pt_id = pt_id
 
 
 class Proj(_BaseObj):
@@ -464,7 +457,7 @@ class Subj(GetAttr):
         assert isinstance(
             scn, (pyxnat.core.resources.Subject, Subject)
         ), "Initialize with a Subject instance please"
-        store_attr()
+        self.scn = scn
         # self.get_rscs()
 
     def exp(self, id: Union[str, int]):
@@ -573,7 +566,7 @@ class Rsc(GetAttr):
     _default = "r"
 
     def __init__(self, r):
-        store_attr()
+        self.r = r
 
     def __repr__(self) -> str:
         repr = self.r.__repr__() + "parent: " + self.r.parent().datatype()

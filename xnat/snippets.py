@@ -23,11 +23,14 @@ if __name__ == "__main__":
     proj_title='tciaclm'
     proj_title='lidc'
     proj_title='bones'
-    proj_title='litq'
+    proj_title='2ww'
     proj = Proj(proj_title)
 # %%
-    subs = [139, 141, 142]
-    proj.dcm2nii(add_date=True,add_desc=True,overwrite=False, subs=subs)
+    # subs = [139, 141, 142]
+
+    subs=[]
+    add_desc=False
+    proj.dcm2nii(add_date=True,add_desc=add_desc,overwrite=False, subs=subs)
 # %%
     proj.dcm2nii(add_date=True,add_desc=True,overwrite=True)
 
