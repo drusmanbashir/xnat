@@ -14,7 +14,7 @@ import SimpleITK as sitk
 from dicom_utils.drli_helper import dcm_segmentation
 from dicom_utils.metadata import *
 from fastcore.basics import listify
-from label_analysis.helpers import get_labels
+from label_analysis.utils.utils.helpers import get_labels
 from pydicom import dcmread
 from tqdm.auto import tqdm
 from utilz.stringz import cleanup_fname, info_from_filename

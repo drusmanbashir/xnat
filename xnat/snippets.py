@@ -11,7 +11,7 @@ from dicom_utils.helpers import dcm_segmentation
 from xnat.object_oriented import Subj
 from pathlib import Path
 import os
-from label_analysis.utils import fix_slicer_labelmap, get_metadata, thicken_nii
+from label_analysis.utils.utils import fix_slicer_labelmap, get_metadata, thicken_nii
 from xnat.object_oriented import *
 from utilz.fileio import maybe_makedirs
 

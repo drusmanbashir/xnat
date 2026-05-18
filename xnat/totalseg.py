@@ -4,7 +4,7 @@ try:
     from itk import image
 except Exception:
     image = None
-from label_analysis.helpers import get_labels, to_int, to_label
+from label_analysis.utils.utils.helpers import get_labels, to_int, to_label
 import functools as fl
 import pandas as pd
 import ipdb
