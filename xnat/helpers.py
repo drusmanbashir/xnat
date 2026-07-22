@@ -2,6 +2,8 @@
 from pathlib import Path
 import shutil
 import ipdb
+
+from utilz.helpers import info_from_filename
 tr = ipdb.set_trace
 
 from utilz.fileio import maybe_makedirs, str_to_path
@@ -26,7 +28,6 @@ def readable_text(txt):
     txt = [txt.replace(k,v) for k,v in badchars.items()][0]
     return txt
 
-# %%
 def fn_to_attr(fpath: Path):
     '''
     Parse filename into components: patient ID, date, description, tag and extension.
@@ -66,7 +67,6 @@ def fn_to_attr(fpath: Path):
             
     return None  # Return None if no pattern matches
    
-# %%
 def fix_filename(fpath):
     '''
     legacy readable_text allowed _num_ formats to circumvent (num). This created fnames with unnecessary _ in them. This function fixes names
@@ -85,7 +85,7 @@ def fix_filename(fpath):
 
 
 @str_to_path([0,1])
-def collate_nii_foldertree(src_fldr,dest_fldr,fname_cond:str=""):
+def collate_nii_foldertree(src_fldr,dest_fldr,fname_cond:str="",exclude_str:str=""):
     '''
     This function searches for all files recursively under src_fldr and moves them to dest_fldr. If an fname_cond is set, only files with that substring will be moved.
     '''
@@ -93,6 +93,8 @@ def collate_nii_foldertree(src_fldr,dest_fldr,fname_cond:str=""):
     maybe_makedirs([dest_fldr])
     ni = list(src_fldr.rglob("*"))
     ni = [n for n in ni if n.is_file() and fname_cond in n.name]
+    if exclude_str!="":
+        ni = [n for n in ni if exclude_str not in n.name]
     print("{0} files found".format(len(ni)))
     print("Moving all files from  {0} to  {1}".format(str(src_fldr), str(dest_fldr)))
     for fn in ni:
@@ -109,7 +111,41 @@ def collate_nii_foldertree(src_fldr,dest_fldr,fname_cond:str=""):
 
 # %%
 if __name__ == "__main__":
-    imgs_fldr = "/s/xnat_shadow/crc/test/images/"
+    imgs_fldr = "/home/ub/Downloads/admin-20260408_024055"
     dest = Path(imgs_fldr)/"tmp"
-    collate_nii_foldertree(imgs_fldr,dest,fname_cond="")
+    collate_nii_foldertree(imgs_fldr,dest,fname_cond="",exclude_str="LABELMAP")
 # %%
+    fldr = Path("/home/ub/Downloads/admin-20260408_024055/tmp")
+    ni = list(fldr.rglob("*"))
+    dest=Path("/s/xnat_shadow/nodes/images_pending")
+    done = Path("/s/xnat_shadow/nodes/images")
+    fns_done = list(done.glob("*"))
+    case_ids_done = [info_from_filename(fn.name)['case_id'] for fn in fns_done]
+    fns_names_done = [fn.name for fn in fns_done]
+    for fn in ni:
+        fn_name = fn.name
+        if fn_name in fns_names_done:
+            print("File already exists in destination, skipping: "+fn_name)
+        else:
+            fn_neo = dest/fn.name
+            print("{0}   ---->   {1}".format(fn,fn_neo))
+            shutil.move(fn,fn_neo)
+# %%
+    fns_pending = list(dest.glob("*"))
+
+    for fn in fns_pending:
+        case_id = info_from_filename(fn.name)['case_id']
+        if case_id in case_ids_done:
+            print("Case ID already exists in destination, deleting: "+case_id)
+            fn.unlink()  # Delete the file
+
+# %%
+
+
+
+
+
+
+
+
+    

@@ -1,7 +1,10 @@
 # %%
 import shutil
-from itk import image
-from label_analysis.helpers import get_labels, to_int, to_label
+try:
+    from itk import image
+except Exception:
+    image = None
+from label_analysis.utils.utils.helpers import get_labels, to_int, to_label
 import functools as fl
 import pandas as pd
 import ipdb
@@ -10,7 +13,7 @@ from utilz.imageviewers import ImageMaskViewer, view_sitk
 
 from utilz.fileio import maybe_makedirs
 from utilz.helpers import chunks, find_matching_fn
-from utilz.string import strip_extension
+from utilz.stringz import strip_extension
 tr = ipdb.set_trace
 
 from pathlib import  Path

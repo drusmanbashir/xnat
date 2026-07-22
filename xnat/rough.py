@@ -2,7 +2,10 @@
 import os
 
 import pandas as pd
-from pydicom.filereader import read_dicomdir
+try:
+    from pydicom.filereader import read_dicomdir
+except ImportError:
+    read_dicomdir = None
 import itertools as il
 import SimpleITK as sitk
 import ipdb
@@ -10,7 +13,7 @@ from pydicom import dcmread
 from pyxnat.core.resources import shutil
 
 from utilz.imageviewers import view_sitk
-from utilz.string import info_from_filename, strip_extension
+from utilz.stringz import info_from_filename, strip_extension
 tr = ipdb.set_trace
 
 from pathlib import Path
